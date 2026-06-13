@@ -21,6 +21,8 @@ const SignUp = ({ onBack, onSignIn, onSignUpSuccess }) => {
   const handleSignUp = (e) => {
     e.preventDefault();
 
+    if (isSubmitting) return;
+
     if (!termsAccepted) {
       setErrorMessage('You must agree to the terms and conditions before creating an account.');
       return;
@@ -32,21 +34,13 @@ const SignUp = ({ onBack, onSignIn, onSignUpSuccess }) => {
     }
 
     setErrorMessage('');
+    setIsSubmitting(true);
 
     onSignUpSuccess(email, password, {
       name: fullName,
       company,
       jobTitle,
     });
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-
-    // Defer the sign-up success callback by 600ms. This prevents the immediate,
-    // synchronous unmounting of the form elements, giving Google Password Manager/browser
-    // heuristics the required time to capture the submitted credentials and prompt the user.
-    setTimeout(() => {
-      onSignUpSuccess(email, password);
-    }, 600);
   };
 
   return (
@@ -223,11 +217,8 @@ const SignUp = ({ onBack, onSignIn, onSignUpSuccess }) => {
             <button 
               type="submit"
               disabled={!termsAccepted}
-              onClick={handleSignUp}
-              className="w-full bg-gradient-to-r from-[#1061CC] to-[#49C5E0] hover:scale-[1.01] active:scale-[0.99] text-white font-bold py-4 rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              disabled={isSubmitting}
               className={`w-full bg-gradient-to-r from-[#1061CC] to-[#49C5E0] text-white font-bold py-4 rounded-xl shadow-lg transition-all ${
-                isSubmitting ? 'opacity-70 cursor-not-allowed scale-[0.99]' : 'hover:scale-[1.01] active:scale-[0.99]'
+                !termsAccepted || isSubmitting ? 'opacity-70 cursor-not-allowed scale-[0.99]' : 'hover:scale-[1.01] active:scale-[0.99]'
               }`}
             >
               {isSubmitting ? 'Creating Account...' : 'Create Account'}

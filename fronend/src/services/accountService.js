@@ -63,4 +63,33 @@ export const createPaymentMethod = async (paymentMethod) => {
   });
 };
 
-export default { listOrganizations, createOrganization, listPaymentMethods, createPaymentMethod };
+export const getProfile = async () => {
+  const ownerEmail = getCurrentUserEmail();
+  const query = ownerEmail ? `?owner_email=${encodeURIComponent(ownerEmail)}` : '';
+  return requestJson(`/profile${query}`, { method: 'GET' });
+};
+
+export const saveProfile = async (profile) => {
+  const ownerEmail = getCurrentUserEmail();
+  return requestJson('/profile', {
+    method: 'POST',
+    body: JSON.stringify({
+      owner_email: ownerEmail,
+      name: profile.name,
+      email: profile.email,
+      phone: profile.phone,
+      company: profile.company,
+      job_title: profile.jobTitle,
+      description: profile.description,
+    }),
+  });
+};
+
+export default {
+  listOrganizations,
+  createOrganization,
+  listPaymentMethods,
+  createPaymentMethod,
+  getProfile,
+  saveProfile,
+};

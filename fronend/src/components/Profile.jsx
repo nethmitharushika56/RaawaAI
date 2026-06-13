@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Mail, Phone, Building2, Briefcase, Edit3, ShieldAlert, Trash2, ArrowRight, ChevronRight } from 'lucide-react';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import ConfirmDialog from './ConfirmDialog';
+import { getProfile, saveProfile } from '../services/accountService';
 
 const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
   const [selectedSection, setSelectedSection] = useState('profile');
@@ -62,6 +63,10 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
 
       localStorage.setItem('currentUserEmail', nextEmail);
       lastSavedEmailRef.current = nextEmail;
+
+      void saveProfile(payload).catch((err) => {
+        console.warn('Profile sync skipped:', err?.message || err);
+      });
 
       if (showStatus) {
         setMessage('Profile saved successfully.');
@@ -148,14 +153,66 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
     }
 
     const saved = loadProfileForEmail(activeEmail);
-    setName(saved?.name || '');
-    setEmail(saved?.email || activeEmail || '');
-    setPhone(saved?.phone || '');
-    setCompany(saved?.company || '');
-    setJobTitle(saved?.jobTitle || '');
-    setDescription(saved?.description || '');
-    lastSavedEmailRef.current = activeEmail;
-    hasHydratedRef.current = true;
+    const localPayload = saved
+      ? {
+          name: saved?.name || '',
+          email: saved?.email || activeEmail || '',
+          phone: saved?.phone || '',
+          company: saved?.company || '',
+          jobTitle: saved?.jobTitle || '',
+          description: saved?.description || '',
+        }
+      : null;
+
+    if (saved) {
+      setName(saved?.name || '');
+      setEmail(saved?.email || activeEmail || '');
+      setPhone(saved?.phone || '');
+      setCompany(saved?.company || '');
+      setJobTitle(saved?.jobTitle || '');
+      setDescription(saved?.description || '');
+      lastSavedEmailRef.current = activeEmail;
+    }
+
+    const hydrateRemoteProfile = async () => {
+      try {
+        const response = await getProfile();
+        const remoteProfile = response?.profile;
+
+        if (remoteProfile && !saved) {
+          setName(remoteProfile?.name || '');
+          setEmail(remoteProfile?.email || activeEmail || '');
+          setPhone(remoteProfile?.phone || '');
+          setCompany(remoteProfile?.company || '');
+          setJobTitle(remoteProfile?.job_title || '');
+          setDescription(remoteProfile?.description || '');
+
+          localStorage.setItem(
+            getProfileKey(activeEmail),
+            JSON.stringify({
+              name: remoteProfile?.name || '',
+              email: remoteProfile?.email || activeEmail || '',
+              phone: remoteProfile?.phone || '',
+              company: remoteProfile?.company || '',
+              jobTitle: remoteProfile?.job_title || '',
+              description: remoteProfile?.description || '',
+            })
+          );
+        }
+
+        if (localPayload) {
+          void saveProfile(localPayload).catch((err) => {
+            console.warn('Profile resync skipped:', err?.message || err);
+          });
+        }
+      } catch (err) {
+        console.warn('Profile fetch skipped:', err?.message || err);
+      } finally {
+        hasHydratedRef.current = true;
+      }
+    };
+
+    hydrateRemoteProfile();
   }, []);
 
   useEffect(() => {

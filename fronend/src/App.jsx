@@ -22,6 +22,7 @@ import About from './components/About';
 import ChangePlan from './components/ChangePlan';
 import PaymentMethods from './components/PaymentMethods';
 import Footer from './components/Footer';
+import { saveProfile } from './services/accountService';
 import { runSimulation, refinePolicy, generateReport, saveSimulationId } from './services/geminiService';
 import { ChevronLeft } from 'lucide-react';
 
@@ -63,6 +64,10 @@ const App = () => {
 
     localStorage.setItem(getProfileKey(normalizedEmail), JSON.stringify(nextProfile));
     localStorage.setItem('currentUserEmail', normalizedEmail);
+
+    void saveProfile(nextProfile).catch((err) => {
+      console.warn('Profile sync skipped during signup:', err?.message || err);
+    });
   };
 
   const requireAuth = (element) => {

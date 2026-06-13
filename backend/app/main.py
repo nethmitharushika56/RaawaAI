@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.simulation import router as simulation_router
 from app.api.account import router as account_router
+from app.api.profile import router as profile_router
 
 app = FastAPI(title="RaawaAI Backend")
 
@@ -16,6 +17,7 @@ app.add_middleware(
 
 app.include_router(simulation_router, prefix="/api")
 app.include_router(account_router, prefix="/api")
+app.include_router(profile_router, prefix="/api")
 
 @app.get("/")
 def root():
