@@ -63,6 +63,40 @@ export const createPaymentMethod = async (paymentMethod) => {
   });
 };
 
+export const listSimulations = async () => requestJson('/simulations', { method: 'GET' });
+
+export const registerReviewer = async (reviewer) => requestJson('/reviewers/register', {
+  method: 'POST',
+  body: JSON.stringify(reviewer),
+});
+
+export const loginReviewer = async (credentials) => requestJson('/reviewers/login', {
+  method: 'POST',
+  body: JSON.stringify(credentials),
+});
+
+export const listReviewers = async ({ ownerEmail = '', organizationId = '' } = {}) => {
+  const query = new URLSearchParams();
+  if (ownerEmail) query.set('owner_email', ownerEmail);
+  if (organizationId) query.set('organization_id', organizationId);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  return requestJson(`/reviewers${suffix}`, { method: 'GET' });
+};
+
+export const listReviews = async ({ simulationId = '', reviewerEmail = '', organizationId = '' } = {}) => {
+  const query = new URLSearchParams();
+  if (simulationId) query.set('simulation_id', simulationId);
+  if (reviewerEmail) query.set('reviewer_email', reviewerEmail);
+  if (organizationId) query.set('organization_id', organizationId);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  return requestJson(`/reviews${suffix}`, { method: 'GET' });
+};
+
+export const submitReview = async (review) => requestJson('/reviews', {
+  method: 'POST',
+  body: JSON.stringify(review),
+});
+
 export const getProfile = async () => {
   const ownerEmail = getCurrentUserEmail();
   const query = ownerEmail ? `?owner_email=${encodeURIComponent(ownerEmail)}` : '';
@@ -90,6 +124,12 @@ export default {
   createOrganization,
   listPaymentMethods,
   createPaymentMethod,
+  listSimulations,
+  registerReviewer,
+  loginReviewer,
+  listReviewers,
+  listReviews,
+  submitReview,
   getProfile,
   saveProfile,
 };

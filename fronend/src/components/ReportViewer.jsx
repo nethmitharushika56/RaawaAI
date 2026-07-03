@@ -1,6 +1,39 @@
 import React from 'react';
 
 const ReportViewer = ({ report, onClose }) => {
+  const handleDownload = () => {
+    const lines = [
+      report.title || 'Simulation Report',
+      '',
+      `Generated: ${report.date || new Date().toISOString().slice(0, 10)}`,
+      '',
+      '## Executive Summary',
+      report.executiveSummary || '',
+      '',
+      '## Risk Analysis',
+      report.riskAnalysis || '',
+      '',
+      '## Demographic Impact',
+      report.demographicImpact || '',
+      '',
+      '## Strategic Recommendations',
+      ...(Array.isArray(report.strategicRecommendations) ? report.strategicRecommendations.map((item, index) => `${index + 1}. ${item}`) : []),
+      '',
+      '## Conclusion',
+      report.conclusion || '',
+    ];
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${(report.title || 'simulation-report').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex items-start justify-center overflow-y-auto p-4 sm:p-10 no-print animate-in fade-in duration-300">
       <div className="max-w-4xl w-full bg-white text-slate-900 rounded-[2rem] shadow-2xl overflow-hidden print:shadow-none print:rounded-none animate-in zoom-in duration-500 relative">
@@ -23,6 +56,13 @@ const ReportViewer = ({ report, onClose }) => {
             </p>
           </div>
           <div className="flex space-x-3 no-print">
+            <button
+              onClick={handleDownload}
+              className="p-3 bg-slate-900 text-white rounded-full hover:bg-slate-700 transition-all shadow-lg active:scale-90"
+              title="Download report"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v12m0 0l-4-4m4 4l4-4m-8 8h8"></path></svg>
+            </button>
             <button 
               onClick={() => window.print()}
               className="p-3 bg-slate-100 text-slate-900 rounded-full hover:bg-blue-600 hover:text-white transition-all shadow-lg active:scale-90"
