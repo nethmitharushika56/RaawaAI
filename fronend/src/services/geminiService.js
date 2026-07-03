@@ -1,6 +1,7 @@
 // Backend API Service
 const rawApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 const API_BASE_URL = rawApiBaseUrl.endsWith('/api') ? rawApiBaseUrl : `${rawApiBaseUrl}/api`;
+export const SIMULATION_RESULT_STORAGE_KEY = 'latestSimulationResult';
 
 const sentimentFromBacklash = (backlashProbability) => {
   const normalized = Number(backlashProbability) || 0;
@@ -16,9 +17,17 @@ const normalizeReaction = (reaction, concept, index) => ({
   influenceWeight: reaction.influenceWeight ?? 0.5,
 });
 
+const normalizeAudienceLabel = (audience) => {
+  if (typeof audience === 'string') return audience;
+  if (audience && typeof audience === 'object') {
+    return audience.label || audience.type || audience.demographics?.[0] || 'General';
+  }
+  return 'General';
+};
+
 export const runSimulation = async (concept, audience) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/simulation/start`, {
+    const response = await fetch(`${API_BASE_URL}/simulation/multi_start`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -40,14 +49,20 @@ export const runSimulation = async (concept, audience) => {
     const reactions = (data.reactions || data.sample_posts || []).map((reaction, idx) =>
       normalizeReaction(reaction, data.concept, idx)
     );
+    const summaryDetails = data.summary || {};
+    const summaryText = typeof summaryDetails === 'string'
+      ? summaryDetails
+      : `Simulation results for "${data.concept}" targeting ${normalizeAudienceLabel(data.audience)}. Backlash probability: ${backlashProbability}%`;
 
     return {
       ...data,
-      summary: data.summary || `Simulation results for "${data.concept}" targeting ${data.audience}. Backlash probability: ${backlashProbability}%`,
-      audienceType: data.audience,
+      summary: summaryText,
+      summaryDetails,
+      audienceType: normalizeAudienceLabel(data.audience_label || data.audience),
       backlashProbability,
       sentimentScore,
-      reactions
+      reactions,
+      heatmapMatrix: data.heatmap_matrix || data.heatmapMatrix || [],
     };
   } catch (error) {
     console.error('Simulation failed:', error);
@@ -133,4 +148,18 @@ export const generateReport = async (result) => {
 
 export const saveSimulationId = (simulationId) => {
   sessionStorage.setItem('currentSimulationId', simulationId);
+};
+
+export const saveSimulationResult = (result) => {
+  localStorage.setItem(SIMULATION_RESULT_STORAGE_KEY, JSON.stringify(result));
+};
+
+export const loadSimulationResult = () => {
+  const raw = localStorage.getItem(SIMULATION_RESULT_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 };

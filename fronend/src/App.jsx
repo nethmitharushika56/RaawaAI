@@ -21,9 +21,10 @@ import Settings from './components/Settings';
 import About from './components/About';
 import ChangePlan from './components/ChangePlan';
 import PaymentMethods from './components/PaymentMethods';
+import SimulationResultWindow from './components/SimulationResultWindow';
 import Footer from './components/Footer';
 import { saveProfile } from './services/accountService';
-import { runSimulation, refinePolicy, generateReport, saveSimulationId } from './services/geminiService';
+import { runSimulation, refinePolicy, generateReport, saveSimulationId, saveSimulationResult } from './services/geminiService';
 import { ChevronLeft } from 'lucide-react';
 
 const normalizeEmail = (value) => (value || '').trim().toLowerCase();
@@ -99,15 +100,21 @@ const App = () => {
       return;
     }
 
+    const resultWindow = window.open('/simulation-result', '_blank', 'noopener,noreferrer');
+
     setIsLoading(true);
     setRefinement(null);
     setReport(null);
 
     try {
       const data = await runSimulation(concept, audience);
+      saveSimulationResult(data);
       setResult(data);
       if (data?.simulation_id) {
         saveSimulationId(data.simulation_id);
+      }
+      if (resultWindow && !resultWindow.closed) {
+        resultWindow.focus();
       }
     } catch (error) {
       console.error(error);
@@ -180,33 +187,39 @@ const App = () => {
     view = 'reviewer';
   } else if (location.pathname === '/upgrade') {
     view = 'upgrade';
+  } else if (location.pathname === '/simulation-result') {
+    view = 'simulation-result';
   } else if (location.pathname === '/organizations' || location.pathname.startsWith('/organizations/')) {
     view = 'organizations';
   }
 
+  const isSimulationResultWindow = location.pathname === '/simulation-result';
+
   return (
     <div className="min-h-screen bg-[#020617] text-white flex flex-col relative animate-fade-in">
-      <Header
-        view={view}
-        isAuthenticated={isAuthenticated}
-        userRole={userRole}
-        currentPath={location.pathname}
-        onHome={() => navigate('/')}
-        onDashboard={() => navigate('/agency-dashboard')}
-        onStart={() => navigate('/simulator')}
-        onSignIn={() => navigate('/login')}
-        onSignOut={handleSignOut}
-        onAbout={() => navigate('/about')}
-        onSettings={() => {
-          setLastView(location.pathname);
-          navigate('/settings');
-        }}
-        onReports={() => navigate('/reports')}
-        onOrganizations={() => navigate('/organizations')}
-        onUpgrade={() => navigate('/upgrade')}
-        onProfile={() => navigate('/profile')}
-        onReviewer={() => navigate('/reviewer')}
-      />
+      {!isSimulationResultWindow && (
+        <Header
+          view={view}
+          isAuthenticated={isAuthenticated}
+          userRole={userRole}
+          currentPath={location.pathname}
+          onHome={() => navigate('/')}
+          onDashboard={() => navigate('/agency-dashboard')}
+          onStart={() => navigate('/simulator')}
+          onSignIn={() => navigate('/login')}
+          onSignOut={handleSignOut}
+          onAbout={() => navigate('/about')}
+          onSettings={() => {
+            setLastView(location.pathname);
+            navigate('/settings');
+          }}
+          onReports={() => navigate('/reports')}
+          onOrganizations={() => navigate('/organizations')}
+          onUpgrade={() => navigate('/upgrade')}
+          onProfile={() => navigate('/profile')}
+          onReviewer={() => navigate('/reviewer')}
+        />
+      )}
 
       <main className="flex-grow relative">
         <Routes>
@@ -315,12 +328,13 @@ const App = () => {
           <Route path="/reports/optimization" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><OptimizationReport onBack={() => navigate('/reports')} /></div>)} />
           <Route path="/upgrade" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Upgrade onBack={() => navigate('/simulator')} /></div>)} />
           <Route path="/reviewer" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ReviewerDashboard onBack={() => navigate('/simulator')} /></div>)} />
+          <Route path="/simulation-result" element={<SimulationResultWindow onClose={() => navigate('/simulator')} />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
-      <Footer />
+      {!isSimulationResultWindow && <Footer />}
 
       {report && <ReportViewer report={report} onClose={() => setReport(null)} />}
 

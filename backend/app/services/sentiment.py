@@ -1,6 +1,12 @@
 import re
 
+from app.services.external_llm import call_huggingface_sentiment_score
+
 def extract_sentiment(text: str) -> float:
+    hf_score = call_huggingface_sentiment_score(text)
+    if hf_score is not None:
+        return float(hf_score)
+
     match = re.search(r"Sentiment score:\s*(-?\d+\.?\d*)", text, re.IGNORECASE)
     if match:
         return float(match.group(1))

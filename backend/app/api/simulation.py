@@ -187,6 +187,7 @@ def start_multi_simulation(req: SimulationRequest):
     """Run a richer multi-agent simulation using LLMs and aggregation logic."""
     audience = req.audience if isinstance(req.audience, dict) else {"demographics": [req.audience or "General"], "regions": ["Sri Lanka"]}
     result = run_simulation(req.concept, audience, days=30, sampling=6)
+    audience_label = _audience_label(req.audience)
 
     # Persist summary similar to existing endpoint
     summary = result.get("summary", {})
@@ -210,8 +211,13 @@ def start_multi_simulation(req: SimulationRequest):
         "simulation_id": simulation_id,
         "concept": req.concept,
         "audience": audience,
+        "audience_label": audience_label,
+        "summary": summary,
+        "sentiment_score": result.get("sentiment_score"),
         "backlash_probability": result.get("backlash_probability"),
         "heatmap": result.get("heatmap"),
+        "heatmap_matrix": result.get("heatmap_matrix"),
         "sample_posts": result.get("sample_posts"),
+        "reactions": result.get("sample_posts"),
         "refinement": result.get("refinement"),
     }

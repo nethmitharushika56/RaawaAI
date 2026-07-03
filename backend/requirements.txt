@@ -19,5 +19,6 @@ watchfiles==1.1.1
 websockets==15.0.1
 openai>=1.0.0
 boto3>=1.26.0
+requests>=2.32.0
 python-dateutil>=2.8.2
 pytest>=8.0.0

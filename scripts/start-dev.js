@@ -62,13 +62,19 @@ if (!fs.existsSync(envExamplePath)) {
   }
 }
 
-// Find Python executable: prefer explicit PYTHON_PATH from env, then .venv, then system
+// Find Python executable: prefer explicit PYTHON_PATH from env, then backend/.venv, then repo .venv, then system
 const explicitPython = process.env.PYTHON_PATH;
+const backendVenvWin = path.join(backendDir, '.venv', 'Scripts', 'python.exe');
+const backendVenvUnix = path.join(backendDir, '.venv', 'bin', 'python');
 const venvWin = path.join(repoRoot, '.venv', 'Scripts', 'python.exe');
 const venvUnix = path.join(repoRoot, '.venv', 'bin', 'python');
 let pythonExe = null;
 if (explicitPython && fs.existsSync(explicitPython)) {
   pythonExe = explicitPython;
+} else if (fs.existsSync(backendVenvWin)) {
+  pythonExe = backendVenvWin;
+} else if (fs.existsSync(backendVenvUnix)) {
+  pythonExe = backendVenvUnix;
 } else if (fs.existsSync(venvWin)) {
   pythonExe = venvWin;
 } else if (fs.existsSync(venvUnix)) {
@@ -82,12 +88,17 @@ if (explicitPython && fs.existsSync(explicitPython)) {
 }
 
 const backendPort = process.env.BACKEND_PORT || process.env.VITE_API_PORT || '8001';
+const frontendEnv = {
+  ...process.env,
+  VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || `http://localhost:${backendPort}`,
+};
 
 console.log('Starting frontend and backend...');
 console.log(`Using Python: ${pythonExe}`);
 
 const frontend = spawn('npm', ['run', 'dev'], {
   cwd: frontendDir,
+  env: frontendEnv,
   stdio: 'inherit',
   shell: process.platform === 'win32',
 });
