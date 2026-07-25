@@ -1,61 +1,57 @@
 # RaawaAI
 
-Lightweight assistant project with a Python backend and a Vite React frontend.
+RaawaAI is a Digital Laboratory for stress-testing products, laws, and policies against a synthetic global public, predicting human resonance and brand backlash before launching. It features a FastAPI backend with a persistent SQLite database and a React frontend built with Vite.
 
-## Repository structure
+## Key Features & Visual Architecture
+- **Interactive Sentiment Heatmap**: Renders daily sentiment grids with visual intensity mapping (RGB gradients from Red for Negative to Emerald Green for Positive) and detailed hover tooltips.
+- **Persistent SQLite Database Layer**: Integrates a persistent local database (`backend/raawa.db`) to store users, profiles, organizations, simulations, and reviews. If AWS credentials are not configured, this database acts as the active storage, replacing volatile in-memory fallback collections.
+- **Security & Authorization Guard**: Implements secure user registration and login endpoints, salted SHA-256 password hashing, and active session tokens validating the `Authorization: Bearer <token>` header across all protected backend API routes.
 
-- `backend/` — Python backend (FastAPI) and services
-- `fronend/` — Frontend app (Vite + React) (note: folder name is `fronend`)
+## Repository Structure
+
+- `backend/` — Python backend (FastAPI, SQLite, LLM Multi-agent Engine)
+- `fronend/` — Vite + React frontend (Dashboard, Simulation Window, Persona Configuration)
+- `scripts/` — Dev server automation runners
 
 ## Prerequisites
 
-- Python 3.10+ and pip
-- Node.js 16+ and npm or pnpm
+- Python 3.10+
+- Node.js 16+ and npm
 
-## Backend (run locally)
+## Getting Started (Run Locally)
 
-1. Create and activate a virtual environment:
+You can launch both the React frontend and the FastAPI backend concurrently using the root dev runner:
 
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
+1. Clone the repository and navigate to the project directory:
+   ```bash
+   cd RaawaAI
+   ```
+2. Install npm packages in the root directory:
+   ```bash
+   npm install
+   ```
+3. Run the development environment:
+   ```bash
+   npm run dev
+   ```
+   This will automatically detect your python environment, initialize the SQLite database, and launch:
+   - **Frontend**: http://localhost:3000
+   - **Backend**: http://localhost:8001
 
-2. Install dependencies:
+## Backend Setup & Testing
 
-```powershell
-pip install -r requirements.txt
-```
+If you want to manage or test the backend independently:
 
-3. Run the backend (common pattern using Uvicorn):
+1. Set up the virtual environment:
+   ```bash
+   cd backend
+   python -m venv .venv
+   .\.venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+2. Run the test suite:
+   ```bash
+   pytest
+   ```
 
-```powershell
-uvicorn app.main:app --reload --port 8000
-```
-
-See `backend/README.md` for backend-specific details.
-
-## Frontend (run locally)
-
-1. Install dependencies:
-
-```bash
-cd fronend
-npm install
-```
-
-2. Start the dev server:
-
-```bash
-npm run dev
-```
-
-The frontend dev server typically runs on `http://localhost:5173` (Vite default).
-
-See `fronend/README.md` (if present) for more frontend details.
-
-## Notes
-
-- This README provides a minimal starting guide. Backend and frontend directories include their own READMEs with additional instructions.
-- If you want, I can expand this README with architecture diagrams, environment variables, or deployment steps.
+See [backend/README.md](file:///c:/Users/gamag/OneDrive/Desktop/My%20projects/RaawaAI/backend/README.md) for details on AWS DynamoDB configurations and environment variables.
