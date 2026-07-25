@@ -12,11 +12,10 @@ from boto3.dynamodb.conditions import Attr
 
 from app.config import AWS_REGION
 
+from app.services.sqlite_db import db_save_organization, db_get_organizations, db_save_payment_method, db_get_payment_methods
+
 ORGANIZATIONS_TABLE = os.getenv("ORGANIZATIONS_TABLE", "raawa-organizations")
 PAYMENT_METHODS_TABLE = os.getenv("PAYMENT_METHODS_TABLE", "raawa-payment-methods")
-
-_fallback_organizations = []
-_fallback_payment_methods = []
 
 
 def _normalize_email(value):
@@ -86,15 +85,6 @@ def _filter_items(items, owner_email=None):
     return list(items)
 
 
-def _save_fallback(collection, payload):
-    collection.append(payload)
-    return payload
-
-
-def _list_fallback(collection, owner_email=None):
-    return _filter_items(collection, owner_email)
-
-
 def save_organization(org_data):
     owner_email = _normalize_email(org_data.get("owner_email"))
     item = {
@@ -109,7 +99,7 @@ def save_organization(org_data):
     }
 
     if dynamodb_resource is None:
-        return _save_fallback(_fallback_organizations, item)
+        return db_save_organization(item)
 
     table = _get_table(ORGANIZATIONS_TABLE)
     table.put_item(Item=item)
@@ -118,7 +108,7 @@ def save_organization(org_data):
 
 def get_organizations(owner_email=None):
     if dynamodb_resource is None:
-        return _list_fallback(_fallback_organizations, owner_email)
+        return db_get_organizations(owner_email)
 
     table = _get_table(ORGANIZATIONS_TABLE)
     response = table.scan(
@@ -146,7 +136,7 @@ def save_payment_method(payment_data):
     }
 
     if dynamodb_resource is None:
-        return _save_fallback(_fallback_payment_methods, item)
+        return db_save_payment_method(item)
 
     table = _get_table(PAYMENT_METHODS_TABLE)
     table.put_item(Item=item)
@@ -155,7 +145,7 @@ def save_payment_method(payment_data):
 
 def get_payment_methods(owner_email=None):
     if dynamodb_resource is None:
-        return _list_fallback(_fallback_payment_methods, owner_email)
+        return db_get_payment_methods(owner_email)
 
     table = _get_table(PAYMENT_METHODS_TABLE)
     response = table.scan(

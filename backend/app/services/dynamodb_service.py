@@ -7,8 +7,15 @@ try:
 except ImportError:
     boto3 = None
 
+from app.services.sqlite_db import (
+    db_save_simulation,
+    db_get_simulation,
+    db_get_all_simulations,
+    db_save_refinement,
+    db_save_report,
+)
+
 TABLE_NAME = os.getenv('DYNAMODB_TABLE', 'raawa-simulations')
-_fallback_store = {}
 
 
 def _create_resource():
@@ -71,33 +78,27 @@ def get_table():
 
 
 def save_simulation(simulation_id, concept, audience, backlash_score, sample_posts, metadata=None):
-    """Save simulation result to DynamoDB"""
+    """Save simulation result to DynamoDB or SQLite fallback"""
+    item = {
+        'simulation_id': simulation_id,
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'concept': concept,
+        'audience': audience,
+        'backlash_score': float(backlash_score),
+        'sample_posts': sample_posts,
+        'metadata': metadata or {}
+    }
+
     if dynamodb_resource is None:
-        _fallback_store[simulation_id] = {
-            'simulation_id': simulation_id,
-            'created_at': datetime.now(timezone.utc).isoformat(),
-            'concept': concept,
-            'audience': audience,
-            'backlash_score': backlash_score,
-            'sample_posts': sample_posts,
-            'metadata': metadata or {}
-        }
-        return _fallback_store[simulation_id]
+        return db_save_simulation(item)
 
     try:
         table = get_table()
         
-        item = {
-            'simulation_id': simulation_id,
-            'created_at': datetime.now(timezone.utc).isoformat(),
-            'concept': concept,
-            'audience': audience,
-            'backlash_score': Decimal(str(backlash_score)),
-            'sample_posts': sample_posts,
-            'metadata': metadata or {}
-        }
+        dynamo_item = dict(item)
+        dynamo_item['backlash_score'] = Decimal(str(backlash_score))
         
-        table.put_item(Item=item)
+        table.put_item(Item=dynamo_item)
         return item
     except Exception as e:
         print(f"Error saving simulation: {e}")
@@ -107,7 +108,7 @@ def save_simulation(simulation_id, concept, audience, backlash_score, sample_pos
 def get_simulation(simulation_id):
     """Retrieve a simulation by ID"""
     if dynamodb_resource is None:
-        return _fallback_store.get(simulation_id)
+        return db_get_simulation(simulation_id)
 
     try:
         table = get_table()
@@ -126,7 +127,7 @@ def get_simulation(simulation_id):
 def get_all_simulations():
     """Get all simulations"""
     if dynamodb_resource is None:
-        return list(_fallback_store.values())
+        return db_get_all_simulations()
 
     try:
         table = get_table()
@@ -139,29 +140,20 @@ def get_all_simulations():
 
 def save_refinement(simulation_id, refinement_data):
     """Save refinement data for a simulation"""
+    item = {
+        'simulation_id': f"{simulation_id}-refinement",
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'parent_simulation_id': simulation_id,
+        'policy': refinement_data.get('policy'),
+        'recommendations': refinement_data.get('recommendations'),
+        'metadata': refinement_data.get('metadata', {})
+    }
+
     if dynamodb_resource is None:
-        _fallback_store[f"{simulation_id}-refinement"] = {
-            'simulation_id': f"{simulation_id}-refinement",
-            'created_at': datetime.now(timezone.utc).isoformat(),
-            'parent_simulation_id': simulation_id,
-            'policy': refinement_data.get('policy'),
-            'recommendations': refinement_data.get('recommendations'),
-            'metadata': refinement_data.get('metadata', {})
-        }
-        return _fallback_store[f"{simulation_id}-refinement"]
+        return db_save_refinement(item)
 
     try:
         table = get_table()
-        
-        item = {
-            'simulation_id': f"{simulation_id}-refinement",
-            'created_at': datetime.now(timezone.utc).isoformat(),
-            'parent_simulation_id': simulation_id,
-            'policy': refinement_data.get('policy'),
-            'recommendations': refinement_data.get('recommendations'),
-            'metadata': refinement_data.get('metadata', {})
-        }
-        
         table.put_item(Item=item)
         return item
     except Exception as e:
@@ -171,29 +163,20 @@ def save_refinement(simulation_id, refinement_data):
 
 def save_report(simulation_id, report_data):
     """Save generated report for a simulation"""
+    item = {
+        'simulation_id': f"{simulation_id}-report",
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'parent_simulation_id': simulation_id,
+        'title': report_data.get('title'),
+        'content': report_data.get('content'),
+        'metadata': report_data.get('metadata', {})
+    }
+
     if dynamodb_resource is None:
-        _fallback_store[f"{simulation_id}-report"] = {
-            'simulation_id': f"{simulation_id}-report",
-            'created_at': datetime.now(timezone.utc).isoformat(),
-            'parent_simulation_id': simulation_id,
-            'title': report_data.get('title'),
-            'content': report_data.get('content'),
-            'metadata': report_data.get('metadata', {})
-        }
-        return _fallback_store[f"{simulation_id}-report"]
+        return db_save_report(item)
 
     try:
         table = get_table()
-        
-        item = {
-            'simulation_id': f"{simulation_id}-report",
-            'created_at': datetime.now(timezone.utc).isoformat(),
-            'parent_simulation_id': simulation_id,
-            'title': report_data.get('title'),
-            'content': report_data.get('content'),
-            'metadata': report_data.get('metadata', {})
-        }
-        
         table.put_item(Item=item)
         return item
     except Exception as e:

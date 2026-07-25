@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Mail, Building2, Briefcase, Lock, Eye, EyeOff, X, ShieldCheck, ChevronDown, ChevronLeft } from 'lucide-react';
+import accountService from '../services/accountService';
 
 const SignUp = ({ onBack, onSignIn, onSignUpSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +19,7 @@ const SignUp = ({ onBack, onSignIn, onSignUpSuccess }) => {
     window.scrollBy({ top: 300, behavior: 'smooth' });
   };
 
-  const handleSignUp = (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
 
     if (isSubmitting) return;
@@ -36,11 +37,24 @@ const SignUp = ({ onBack, onSignIn, onSignUpSuccess }) => {
     setErrorMessage('');
     setIsSubmitting(true);
 
-    onSignUpSuccess(email, password, {
-      name: fullName,
-      company,
-      jobTitle,
-    });
+    try {
+      const data = await accountService.signup({
+        email,
+        password,
+        name: fullName,
+        company,
+        jobTitle,
+      });
+      // Save credentials & token in localStorage
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('currentUserEmail', data.user.email);
+      onSignUpSuccess(data.user.email, password, data.user);
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(err.message || 'Signup failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

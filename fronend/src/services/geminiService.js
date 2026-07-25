@@ -25,13 +25,22 @@ const normalizeAudienceLabel = (audience) => {
   return 'General';
 };
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
+
 export const runSimulation = async (concept, audience) => {
   try {
     const response = await fetch(`${API_BASE_URL}/simulation/multi_start`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         concept: concept,
         audience: audience || 'GEN_Z'
@@ -77,9 +86,7 @@ export const refinePolicy = async (concept, summary) => {
     
     const response = await fetch(`${API_BASE_URL}/simulation/${simulationId}/refine`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         policy: concept,
         summary: summary
@@ -110,9 +117,7 @@ export const generateReport = async (result) => {
     
     const response = await fetch(`${API_BASE_URL}/simulation/${simulationId}/report`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         concept: result.concept,
         audience: result.audienceType || result.audience

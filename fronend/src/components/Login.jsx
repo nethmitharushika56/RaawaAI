@@ -1,23 +1,32 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, X, ChevronDown, ChevronLeft } from 'lucide-react';
+import accountService from '../services/accountService';
 
 const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setErrorMessage('');
     
-    // Defer the sign-in success callback by 600ms. This prevents the immediate,
-    // synchronous unmounting of the form elements, giving Google Password Manager/browser
-    // heuristics the required time to capture the submitted credentials and prompt the user.
-    setTimeout(() => {
-      onSignInSuccess(email, password);
-    }, 600);
+    try {
+      const data = await accountService.login(email, password);
+      // Save credentials & token in localStorage
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('currentUserEmail', data.user.email);
+      onSignInSuccess(data.user.email, password);
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(err.message || 'Invalid email or password.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -85,6 +94,12 @@ const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
                 Remember me
               </label>
             </div>
+
+            {errorMessage && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                {errorMessage}
+              </div>
+            )}
 
             <button
               type="submit"

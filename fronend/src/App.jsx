@@ -77,6 +77,15 @@ const App = () => {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    const email = localStorage.getItem('currentUserEmail');
+    if (token && email) {
+      setIsAuthenticated(true);
+      setUserEmail(email);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!isAuthenticated) return;
     const raw = sessionStorage.getItem('pendingSimulation');
     if (!raw) return;
@@ -160,6 +169,7 @@ const App = () => {
     setRefinement(null);
     setReport(null);
     localStorage.removeItem('currentUserEmail');
+    localStorage.removeItem('authToken');
     navigate('/');
   };
 
