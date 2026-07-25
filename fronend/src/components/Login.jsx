@@ -40,7 +40,10 @@ const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
           <X size={32} />
         </button>
 
-        <div className="w-full max-w-[480px] flex flex-col items-center mt-8">
+        <div className="w-full max-w-[480px] flex flex-col items-center mt-8 bg-white/5 border border-white/10 rounded-3xl p-8 md:p-10 backdrop-blur-xl relative overflow-hidden">
+          {/* Top glow */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-transparent via-[#49C5E0]/40 to-transparent"></div>
+
           <h1 className="text-3xl font-medium mb-2 tracking-tight">Welcome Back</h1>
           <p className="text-blue-500 text-sm mb-10 font-medium">Sign in to your account to continue</p>
 
