@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User, Mail, Building2, Briefcase, Lock, Eye, EyeOff, X, ShieldCheck, ChevronDown, ChevronLeft } from 'lucide-react';
 import accountService from '../services/accountService';
 
-const SignUp = ({ onBack, onSignIn, onSignUpSuccess }) => {
+const SignUp = ({ onBack, onSignIn, onSignUpSuccess, onReviewerSignIn }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -247,6 +247,19 @@ const SignUp = ({ onBack, onSignIn, onSignUpSuccess }) => {
                 >
                   Sign In
                 </span>
+              </p>
+            </div>
+
+            <div className="text-center mt-4 pt-3 border-t border-white/5">
+              <p className="text-xs text-slate-500">
+                Are you a reviewer? Reviewers cannot sign up. Please use the credentials provided by your organization owner to{' '}
+                <button
+                  type="button"
+                  onClick={onReviewerSignIn}
+                  className="text-cyan-400 font-bold hover:text-cyan-300 hover:underline transition-colors"
+                >
+                  Sign In as Reviewer
+                </button>
               </p>
             </div>
           </form>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, X, ChevronDown, ChevronLeft } from 'lucide-react';
 import accountService from '../services/accountService';
 
-const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
+const Login = ({ onBack, onSignUp, onSignInSuccess, onReviewerSignIn }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -122,6 +122,17 @@ const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
                 className="text-blue-500 hover:underline font-medium"
               >
                 Sign up
+              </button>
+            </div>
+
+            <div className="text-center text-sm pt-3 border-t border-white/5 mt-4">
+              <span className="text-slate-400">Are you a reviewer? </span>
+              <button
+                type="button"
+                onClick={onReviewerSignIn}
+                className="text-cyan-400 hover:text-cyan-300 hover:underline font-medium transition-colors"
+              >
+                Sign In as Reviewer
               </button>
             </div>
           </form>
