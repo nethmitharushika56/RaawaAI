@@ -17,7 +17,8 @@ const Header = ({
   view, 
   isAuthenticated = false,
   userRole = 'Agent', 
-  currentPath = '' 
+  currentPath = '',
+  avatar = ''
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -86,8 +87,15 @@ const Header = ({
               <div className="relative">
                 <button
                   onClick={() => setAccountOpen((s) => !s)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/5 hover:border-white/10 transition-all font-medium text-sm"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/5 hover:border-white/10 transition-all font-medium text-sm"
                 >
+                  {avatar ? (
+                    <img src={avatar} alt="Profile" className="h-6 w-6 rounded-full object-cover border border-white/10" />
+                  ) : (
+                    <div className="h-6 w-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-300 font-semibold border border-white/10">
+                      A
+                    </div>
+                  )}
                   <span>Account</span>
                 </button>
  

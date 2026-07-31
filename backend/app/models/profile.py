@@ -10,3 +10,4 @@ class ProfileRequest(BaseModel):
     company: Optional[str] = ""
     job_title: Optional[str] = ""
     description: Optional[str] = ""
+    avatar: Optional[str] = ""

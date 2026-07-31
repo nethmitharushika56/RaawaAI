@@ -48,6 +48,7 @@ const App = () => {
   const [showSavePassword, setShowSavePassword] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [userPassword, setUserPassword] = useState('');
+  const [avatar, setAvatar] = useState('');
 
   const getProfileKey = (email) => `profile:${normalizeEmail(email)}`;
   const saveProfileForUser = (email, profileData) => {
@@ -82,6 +83,17 @@ const App = () => {
     if (token && email) {
       setIsAuthenticated(true);
       setUserEmail(email);
+      const saved = localStorage.getItem(`profile:${normalizeEmail(email)}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed?.avatar) {
+            setAvatar(parsed.avatar);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
     }
   }, []);
 
@@ -168,6 +180,7 @@ const App = () => {
     setResult(null);
     setRefinement(null);
     setReport(null);
+    setAvatar('');
     localStorage.removeItem('currentUserEmail');
     localStorage.removeItem('authToken');
     navigate('/');
@@ -206,12 +219,26 @@ const App = () => {
   const isSimulationResultWindow = location.pathname === '/simulation-result';
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white flex flex-col relative animate-fade-in">
+    <div className="min-h-screen text-white flex flex-col relative animate-fade-in">
+      {/* Decorative Background Elements */}
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden bg-[#020617]">
+        {/* Subtle grid pattern overlay */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-70"></div>
+        {/* Radial gradient mask for grid to fade near edges */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-[#020617]"></div>
+        
+        {/* Dynamic moving glow orbs */}
+        <div className="absolute top-[5%] left-[5%] w-[45%] h-[45%] bg-blue-500/12 blur-[120px] rounded-full animate-orb-1"></div>
+        <div className="absolute bottom-[5%] right-[5%] w-[45%] h-[45%] bg-cyan-500/12 blur-[120px] rounded-full animate-orb-2"></div>
+        <div className="absolute top-[35%] left-[35%] w-[30%] h-[30%] bg-purple-500/8 blur-[110px] rounded-full animate-orb-3"></div>
+      </div>
+
       {!isSimulationResultWindow && (
         <Header
           view={view}
           isAuthenticated={isAuthenticated}
           userRole={userRole}
+          avatar={avatar}
           currentPath={location.pathname}
           onHome={() => navigate('/')}
           onDashboard={() => navigate('/agency-dashboard')}
@@ -231,7 +258,7 @@ const App = () => {
         />
       )}
 
-      <main className="flex-grow relative">
+      <main className="flex-grow relative z-10">
         <Routes>
           <Route path="/home" element={<Navigate to="/" replace />} />
 
@@ -270,6 +297,17 @@ const App = () => {
                   setUserPassword(password);
                   setIsAuthenticated(true);
                   localStorage.setItem('currentUserEmail', normalizeEmail(email));
+                  const saved = localStorage.getItem(`profile:${normalizeEmail(email)}`);
+                  if (saved) {
+                    try {
+                      const parsed = JSON.parse(saved);
+                      setAvatar(parsed?.avatar || '');
+                    } catch (e) {
+                      setAvatar('');
+                    }
+                  } else {
+                    setAvatar('');
+                  }
                   const redirectTo = location.state?.from?.pathname || '/agency-dashboard';
                   navigate(redirectTo, { replace: true });
                   setShowSavePassword(true);
@@ -307,7 +345,7 @@ const App = () => {
           <Route path="/settings/*" element={requireAuth(<Settings onBack={() => navigate(lastView || '/agency-dashboard')} />)} />
           <Route path="/settings/subs/change-plan" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ChangePlan onBack={() => navigate('/settings/subs')} /></div>)} />
           <Route path="/settings/subs/payment-methods" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><PaymentMethods onBack={() => navigate('/settings/subs')} /></div>)} />
-          <Route path="/profile" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Profile currentPassword={userPassword} onPasswordChanged={setUserPassword} /></div>)} />
+          <Route path="/profile" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Profile currentPassword={userPassword} onPasswordChanged={setUserPassword} onProfileUpdated={(p) => setAvatar(p?.avatar || '')} /></div>)} />
           <Route path="/organizations" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Organizations onBack={() => navigate('/simulator')} onCreateOrg={() => navigate('/organizations/new')} /></div>)} />
           <Route path="/organizations/new" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><NewOrganization onBack={() => navigate('/organizations')} /></div>)} />
 
@@ -362,12 +400,6 @@ const App = () => {
       {!isSimulationResultWindow && <Footer />}
 
       {report && <ReportViewer report={report} onClose={() => setReport(null)} />}
-
-      {/* Decorative Background Elements */}
-      <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-20 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[150px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-600/5 blur-[150px] rounded-full"></div>
-      </div>
     </div>
   );
 };

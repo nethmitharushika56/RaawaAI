@@ -5,7 +5,7 @@ import ChangePasswordDialog from './ChangePasswordDialog';
 import ConfirmDialog from './ConfirmDialog';
 import { getProfile, saveProfile } from '../services/accountService';
 
-const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
+const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged, onProfileUpdated }) => {
   const [selectedSection, setSelectedSection] = useState('profile');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -14,6 +14,8 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
   const [company, setCompany] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [message, setMessage] = useState('');
+  const [avatar, setAvatar] = useState('');
+  const fileInputRef = useRef(null);
   const hasHydratedRef = useRef(false);
   const lastSavedEmailRef = useRef('');
   const autoSaveTimerRef = useRef(null);
@@ -53,6 +55,7 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
         company: profileData?.company || '',
         jobTitle: profileData?.jobTitle || '',
         description: profileData?.description || '',
+        avatar: profileData?.avatar || '',
       };
 
       localStorage.setItem(getProfileKey(nextEmail), JSON.stringify(payload));
@@ -67,6 +70,10 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
       void saveProfile(payload).catch((err) => {
         console.warn('Profile sync skipped:', err?.message || err);
       });
+
+      if (typeof onProfileUpdated === 'function') {
+        onProfileUpdated(payload);
+      }
 
       if (showStatus) {
         setMessage('Profile saved successfully.');
@@ -83,9 +90,77 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
   };
 
   const handleSave = (event) => {
-    event.preventDefault();
+    if (event) event.preventDefault();
 
-    persistProfile(getCurrentUserEmail(), { name, email, phone, company, jobTitle, description }, { showStatus: true });
+    persistProfile(getCurrentUserEmail(), { name, email, phone, company, jobTitle, description, avatar }, { showStatus: true });
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size should be less than 5MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 256;
+        const MAX_HEIGHT = 256;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setAvatar(dataUrl);
+        persistProfile(getCurrentUserEmail(), {
+          name,
+          email,
+          phone,
+          company,
+          jobTitle,
+          description,
+          avatar: dataUrl
+        }, { showStatus: false });
+        setMessage('Profile picture updated successfully.');
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setAvatar('');
+    persistProfile(getCurrentUserEmail(), {
+      name,
+      email,
+      phone,
+      company,
+      jobTitle,
+      description,
+      avatar: ''
+    }, { showStatus: false });
+    setMessage('Profile picture removed.');
   };
 
   // Show/perform delete flow via confirmation dialog
@@ -108,6 +183,7 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
       setCompany('');
       setJobTitle('');
       setDescription('');
+      setAvatar('');
       setMessage('Account deleted successfully.');
     } catch (err) {
       console.error('Failed to delete account locally:', err);
@@ -161,6 +237,7 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
           company: saved?.company || '',
           jobTitle: saved?.jobTitle || '',
           description: saved?.description || '',
+          avatar: saved?.avatar || '',
         }
       : null;
 
@@ -171,6 +248,7 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
       setCompany(saved?.company || '');
       setJobTitle(saved?.jobTitle || '');
       setDescription(saved?.description || '');
+      setAvatar(saved?.avatar || '');
       lastSavedEmailRef.current = activeEmail;
     }
 
@@ -186,6 +264,7 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
           setCompany(remoteProfile?.company || '');
           setJobTitle(remoteProfile?.job_title || '');
           setDescription(remoteProfile?.description || '');
+          setAvatar(remoteProfile?.avatar || '');
 
           localStorage.setItem(
             getProfileKey(activeEmail),
@@ -196,6 +275,7 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
               company: remoteProfile?.company || '',
               jobTitle: remoteProfile?.job_title || '',
               description: remoteProfile?.description || '',
+              avatar: remoteProfile?.avatar || '',
             })
           );
         }
@@ -220,11 +300,11 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
 
     clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
-      persistProfile(getCurrentUserEmail(), { name, email, phone, company, jobTitle, description });
+      persistProfile(getCurrentUserEmail(), { name, email, phone, company, jobTitle, description, avatar });
     }, 300);
 
     return () => clearTimeout(autoSaveTimerRef.current);
-  }, [name, email, phone, company, jobTitle, description]);
+  }, [name, email, phone, company, jobTitle, description, avatar]);
 
   // Clear all data flow via confirmation dialog
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -245,6 +325,7 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
       setCompany('');
       setJobTitle('');
       setDescription('');
+      setAvatar('');
       setMessage('All local data cleared.');
     } catch (err) {
       console.error('Failed to clear data:', err);
@@ -424,14 +505,43 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged }) => {
           <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
             <aside className="space-y-6 rounded-3xl border border-white/10 bg-slate-950/50 p-6">
               <div className="flex flex-col items-center text-center gap-4">
-                <div className="relative">
-                  <div className="h-28 w-28 rounded-full bg-gradient-to-br from-slate-700 via-slate-800 to-slate-950 flex items-center justify-center text-4xl text-slate-100">
-                    <User />
+                <div 
+                  className="relative group cursor-pointer overflow-hidden rounded-full h-28 w-28 border border-white/10 hover:border-blue-500/40 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {avatar ? (
+                    <img 
+                      src={avatar} 
+                      alt="Profile" 
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105" 
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-slate-700 via-slate-800 to-slate-950 flex items-center justify-center text-4xl text-slate-100">
+                      <User size={40} className="text-slate-300" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-1">
+                    <Edit3 size={16} className="text-slate-200" />
+                    <span className="text-[10px] font-semibold text-slate-200 uppercase tracking-wider">Change</span>
                   </div>
-                  <span className="absolute bottom-0 right-0 inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-500/20">
-                    <ArrowRight size={18} />
-                  </span>
                 </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+                
+                {avatar && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="text-xs text-rose-400 hover:text-rose-300 hover:underline transition-colors font-medium flex items-center gap-1"
+                  >
+                    <Trash2 size={12} /> Remove photo
+                  </button>
+                )}
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Role</p>
                   <p className="text-lg font-semibold text-white">Agent</p>

@@ -138,6 +138,7 @@ export const saveProfile = async (profile) => {
       company: profile.company,
       job_title: profile.jobTitle,
       description: profile.description,
+      avatar: profile.avatar,
     }),
   });
 };

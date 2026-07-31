@@ -83,6 +83,7 @@ def _build_profile_item(profile_data):
         "company": profile_data.get("company", ""),
         "job_title": profile_data.get("job_title", ""),
         "description": profile_data.get("description", ""),
+        "avatar": profile_data.get("avatar", ""),
     }
 
 

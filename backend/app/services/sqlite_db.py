@@ -79,7 +79,8 @@ def init_db():
         phone TEXT,
         company TEXT,
         job_title TEXT,
-        description TEXT
+        description TEXT,
+        avatar TEXT
     )
     """)
     
@@ -153,6 +154,12 @@ def init_db():
     )
     """)
     
+    # Check if avatar column exists in profiles table and add it if not
+    try:
+        cursor.execute("ALTER TABLE profiles ADD COLUMN avatar TEXT")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
 
@@ -258,9 +265,9 @@ def db_save_profile(profile):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT OR REPLACE INTO profiles (profile_id, created_at, updated_at, owner_email, name, email, phone, company, job_title, description)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (profile["profile_id"], profile["created_at"], profile["updated_at"], profile["owner_email"], profile["name"], profile["email"], profile["phone"], profile["company"], profile["job_title"], profile["description"]))
+    INSERT OR REPLACE INTO profiles (profile_id, created_at, updated_at, owner_email, name, email, phone, company, job_title, description, avatar)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (profile["profile_id"], profile["created_at"], profile["updated_at"], profile["owner_email"], profile["name"], profile["email"], profile["phone"], profile["company"], profile["job_title"], profile["description"], profile.get("avatar", "")))
     conn.commit()
     conn.close()
     return profile
