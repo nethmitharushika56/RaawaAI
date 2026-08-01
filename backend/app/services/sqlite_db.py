@@ -364,6 +364,26 @@ def db_save_report(rep):
     conn.close()
     return rep
 
+def db_get_report(simulation_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    row = cursor.execute(
+        "SELECT * FROM reports WHERE parent_simulation_id = ? OR simulation_id = ?",
+        (simulation_id, f"{simulation_id}-report")
+    ).fetchone()
+    conn.close()
+    if row:
+        r = dict(row)
+        if r.get("metadata"):
+            try:
+                r["metadata"] = json.loads(r["metadata"])
+            except Exception:
+                r["metadata"] = {}
+        else:
+            r["metadata"] = {}
+        return r
+    return None
+
 # Reviewers
 def db_save_reviewer(reviewer):
     conn = get_db_connection()

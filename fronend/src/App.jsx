@@ -23,9 +23,18 @@ import ChangePlan from './components/ChangePlan';
 import PaymentMethods from './components/PaymentMethods';
 import SimulationResultWindow from './components/SimulationResultWindow';
 import Footer from './components/Footer';
+import InteractiveBackground from './components/InteractiveBackground';
 import { saveProfile } from './services/accountService';
-import { runSimulation, refinePolicy, generateReport, saveSimulationId, saveSimulationResult } from './services/geminiService';
+import { runSimulation, refinePolicy, generateReport, saveSimulationId, saveSimulationResult, getReport } from './services/geminiService';
 import { ChevronLeft } from 'lucide-react';
+
+const getAudienceLabel = (aud) => {
+  if (typeof aud === 'string') return aud;
+  if (aud && typeof aud === 'object') {
+    return aud.type || aud.label || aud.demographics?.[0] || 'General';
+  }
+  return 'General';
+};
 
 const normalizeEmail = (value) => (value || '').trim().toLowerCase();
 
@@ -220,17 +229,13 @@ const App = () => {
 
   return (
     <div className="min-h-screen text-white flex flex-col relative animate-fade-in">
-      {/* Decorative Background Elements */}
-      <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden bg-[#020617]">
+      {/* Interactive Canvas Particle Background & Grid Overlay */}
+      <InteractiveBackground />
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden bg-transparent">
         {/* Subtle grid pattern overlay */}
         <div className="absolute inset-0 bg-grid-pattern opacity-70"></div>
         {/* Radial gradient mask for grid to fade near edges */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-[#020617]"></div>
-        
-        {/* Dynamic moving glow orbs */}
-        <div className="absolute top-[5%] left-[5%] w-[45%] h-[45%] bg-blue-500/12 blur-[120px] rounded-full animate-orb-1"></div>
-        <div className="absolute bottom-[5%] right-[5%] w-[45%] h-[45%] bg-cyan-500/12 blur-[120px] rounded-full animate-orb-2"></div>
-        <div className="absolute top-[35%] left-[35%] w-[30%] h-[30%] bg-purple-500/8 blur-[110px] rounded-full animate-orb-3"></div>
       </div>
 
       {!isSimulationResultWindow && (
@@ -341,7 +346,24 @@ const App = () => {
             }
           />
 
-          <Route path="/agency-dashboard" element={requireAuth(<AgencyDashboard onNewSimulation={() => navigate('/simulator')} onSettings={() => { setLastView('/agency-dashboard'); navigate('/settings'); }} onReports={() => navigate('/reports')} />)} />
+          <Route 
+            path="/agency-dashboard" 
+            element={requireAuth(
+              <AgencyDashboard 
+                onNewSimulation={() => navigate('/simulator')} 
+                onSettings={() => { setLastView('/agency-dashboard'); navigate('/settings'); }} 
+                onReports={() => navigate('/reports')} 
+                onViewReport={async (id) => {
+                  try {
+                    const data = await getReport(id);
+                    setReport(data);
+                  } catch (e) {
+                    alert('Failed to load report.');
+                  }
+                }}
+              />
+            )} 
+          />
           <Route path="/settings/*" element={requireAuth(<Settings onBack={() => navigate(lastView || '/agency-dashboard')} />)} />
           <Route path="/settings/subs/change-plan" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ChangePlan onBack={() => navigate('/settings/subs')} /></div>)} />
           <Route path="/settings/subs/payment-methods" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><PaymentMethods onBack={() => navigate('/settings/subs')} /></div>)} />
@@ -386,7 +408,35 @@ const App = () => {
             )}
           />
 
-          <Route path="/reports" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Reports onBack={() => navigate('/agency-dashboard')} onDetailedReport={() => navigate('/reports/strategic')} onOptimizeConcept={() => navigate('/reports/optimization')} /></div>)} />
+          <Route 
+            path="/reports" 
+            element={requireAuth(
+              <div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]">
+                <Reports 
+                  onBack={() => navigate('/agency-dashboard')} 
+                  onViewReport={async (id) => {
+                    try {
+                      const data = await getReport(id);
+                      setReport(data);
+                    } catch (e) {
+                      alert('Failed to load report.');
+                    }
+                  }} 
+                  onOptimizeConcept={(sim) => {
+                    setResult({
+                      simulation_id: sim.simulation_id,
+                      concept: sim.concept,
+                      audienceType: getAudienceLabel(sim.audience),
+                      summary: sim.metadata?.summary || sim.summary,
+                      backlashProbability: sim.backlash_score,
+                      sentimentScore: sim.metadata?.sentiment_score || sim.sentiment_score
+                    });
+                    navigate('/simulator');
+                  }} 
+                />
+              </div>
+            )} 
+          />
           <Route path="/reports/strategic" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><StrategicReport onBack={() => navigate('/reports')} /></div>)} />
           <Route path="/reports/optimization" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><OptimizationReport onBack={() => navigate('/reports')} /></div>)} />
           <Route path="/upgrade" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Upgrade onBack={() => navigate('/simulator')} /></div>)} />

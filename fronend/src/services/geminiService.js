@@ -168,3 +168,36 @@ export const loadSimulationResult = () => {
     return null;
   }
 };
+
+export const listSimulations = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.simulations || [];
+  } catch (error) {
+    console.error('Failed to list simulations:', error);
+    return [];
+  }
+};
+
+export const getReport = async (simulationId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulation/${simulationId}/report`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to get report:', error);
+    throw error;
+  }
+};
