@@ -10,6 +10,19 @@ const getAudienceLabel = (aud) => {
   return 'General';
 };
 
+const getSummaryText = (summary, concept, audienceLabel) => {
+  if (typeof summary === 'string') return summary;
+  if (summary && typeof summary === 'object') {
+    if (summary.total_events !== undefined) {
+      const negPercent = Math.round((summary.negative_ratio || 0) * 100);
+      const avgSent = Math.round((summary.average_sentiment || 0) * 100);
+      return `Simulation analyzed ${summary.total_events} events for "${concept}" targeting ${audienceLabel}. Average sentiment was ${avgSent > 0 ? '+' : ''}${avgSent} with a ${negPercent}% negative reaction ratio.`;
+    }
+    return JSON.stringify(summary);
+  }
+  return `Simulation for "${concept}" targeting ${audienceLabel}.`;
+};
+
 const formatDateTime = (isoString) => {
   if (!isoString) return { date: 'Unknown Date', time: 'Unknown Time' };
   try {
@@ -108,7 +121,7 @@ const Dashboard = ({ onNewSimulation, onSettings, onReports, onViewReport }) => 
             const { date, time } = formatDateTime(sim.created_at);
             const audienceLabel = getAudienceLabel(sim.audience);
             const backlashScore = Math.round(Number(sim.backlash_score ?? 0));
-            const summaryText = sim.metadata?.summary || sim.summary || `Simulation for ${sim.concept} targeting ${audienceLabel}.`;
+            const summaryText = getSummaryText(sim.metadata?.summary || sim.summary, sim.concept, audienceLabel);
 
             return (
               <div key={sim.simulation_id} className="group relative flex items-center">

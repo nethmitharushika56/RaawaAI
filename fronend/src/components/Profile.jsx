@@ -1,12 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Mail, Phone, Building2, Briefcase, Edit3, ShieldAlert, Trash2, ArrowRight, ChevronRight } from 'lucide-react';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import ConfirmDialog from './ConfirmDialog';
+import Subscriptions from './Subscriptions';
 import { getProfile, saveProfile } from '../services/accountService';
 
 const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged, onProfileUpdated }) => {
-  const [selectedSection, setSelectedSection] = useState('profile');
+  const location = useLocation();
+  const [selectedSection, setSelectedSection] = useState(() => {
+    return location.state?.section || 'profile';
+  });
+
+  useEffect(() => {
+    if (location.state?.section) {
+      setSelectedSection(location.state.section);
+    }
+  }, [location.state]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -390,6 +400,8 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged, onProfile
             </div>
           </div>
         );
+      case 'subs':
+        return <Subscriptions />;
       default:
         return (
           <form onSubmit={handleSave} className="space-y-8">
@@ -551,6 +563,10 @@ const Profile = ({ onSignOut, currentPassword = '', onPasswordChanged, onProfile
               <div className="space-y-4">
                 <button type="button" className={sectionButtonClass('profile')} onClick={() => setSelectedSection('profile')}>
                   <span>Profile Details</span>
+                  <ChevronRight size={18} />
+                </button>
+                <button type="button" className={sectionButtonClass('subs')} onClick={() => setSelectedSection('subs')}>
+                  <span>Subscriptions</span>
                   <ChevronRight size={18} />
                 </button>
                 <button type="button" className={sectionButtonClass('terms')} onClick={() => setSelectedSection('terms')}>

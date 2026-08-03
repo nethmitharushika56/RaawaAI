@@ -231,8 +231,23 @@ def list_simulations():
 @router.post("/simulation/multi_start")
 def start_multi_simulation(req: SimulationRequest):
     """Run a richer multi-agent simulation using LLMs and aggregation logic."""
-    audience = req.audience if isinstance(req.audience, dict) else {"demographics": [req.audience or "General"], "regions": ["Sri Lanka"]}
-    result = run_simulation(req.concept, audience, days=30, sampling=6)
+    audience = req.audience if isinstance(req.audience, dict) else {"demographics": [req.audience or "General"]}
+    
+    # Process Regional Focus Groups setting
+    focus_group = (req.focus_group or 'local').lower()
+    if focus_group == 'global':
+        audience["regions"] = ["United States", "United Kingdom", "Germany", "Japan", "Sri Lanka"]
+    elif focus_group == 'asia':
+        audience["regions"] = ["India", "Singapore", "Japan", "Sri Lanka"]
+    else:  # local
+        audience["regions"] = ["Sri Lanka"]
+
+    # Process Simulation Fidelity setting (map 0-100 to days: 10-30 and sampling: 3-10)
+    fidelity = req.fidelity if req.fidelity is not None else 50
+    days = int(10 + (fidelity / 100.0) * 20)
+    sampling = int(3 + (fidelity / 100.0) * 7)
+
+    result = run_simulation(req.concept, audience, days=days, sampling=sampling)
     audience_label = _audience_label(req.audience)
 
     # Persist summary similar to existing endpoint

@@ -37,13 +37,18 @@ const getAuthHeaders = () => {
 };
 
 export const runSimulation = async (concept, audience) => {
+  const fidelity = Number(localStorage.getItem('simulationFidelity') ?? 50);
+  const focusGroup = localStorage.getItem('focusGroup') ?? 'local';
+
   try {
     const response = await fetch(`${API_BASE_URL}/simulation/multi_start`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         concept: concept,
-        audience: audience || 'GEN_Z'
+        audience: audience || 'GEN_Z',
+        fidelity: fidelity,
+        focus_group: focusGroup
       })
     });
 

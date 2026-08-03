@@ -3,8 +3,6 @@ import { User, Zap, Shield, Users, Smile, ChevronLeft, Check } from 'lucide-reac
 import { useLocation, useNavigate } from 'react-router-dom';
 import PersonaEngine from './PersonaEngine';
 import Privacy from './Privacy';
-import Subscriptions from './Subscriptions';
-import Profile from './Profile';
 import Organizations from './Organizations';
 
 const Settings = ({ onBack }) => {
@@ -13,19 +11,15 @@ const Settings = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState('persona');
 
   const menuItems = [
-    { id: 'identity', label: 'Identity & Profile', icon: User },
     { id: 'persona', label: 'Persona Engine', icon: Zap },
     { id: 'privacy', label: 'Data & Privacy', icon: Shield },
     { id: 'org', label: 'Manage Organization', icon: Users },
-    { id: 'subs', label: 'Subscriptions', icon: Smile },
   ];
-
-  
 
   useEffect(() => {
     const parts = location.pathname.split('/');
     const last = parts[parts.length - 1];
-    if (['identity', 'persona', 'privacy', 'org', 'subs'].includes(last)) {
+    if (['persona', 'privacy', 'org'].includes(last)) {
       setActiveTab(last);
     } else {
       setActiveTab('persona');
@@ -77,12 +71,6 @@ const Settings = ({ onBack }) => {
 
           {/* Content area */}
           <main className="flex-grow space-y-8">
-            {activeTab === 'identity' && (
-              <div className="w-full px-0">
-                <Profile />
-              </div>
-            )}
-
             {activeTab === 'persona' && <PersonaEngine />}
 
             {activeTab === 'privacy' && <Privacy />}
@@ -96,8 +84,6 @@ const Settings = ({ onBack }) => {
                 </div>
               </div>
             )}
-
-            {activeTab === 'subs' && <Subscriptions />}
 
             <div className="text-center pt-8">
               <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] border-t border-white/5 pt-8">

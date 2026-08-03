@@ -36,6 +36,19 @@ const getAudienceLabel = (aud) => {
   return 'General';
 };
 
+const getSummaryText = (summary, concept, audienceLabel) => {
+  if (typeof summary === 'string') return summary;
+  if (summary && typeof summary === 'object') {
+    if (summary.total_events !== undefined) {
+      const negPercent = Math.round((summary.negative_ratio || 0) * 100);
+      const avgSent = Math.round((summary.average_sentiment || 0) * 100);
+      return `Simulation analyzed ${summary.total_events} events for "${concept}" targeting ${audienceLabel}. Average sentiment was ${avgSent > 0 ? '+' : ''}${avgSent} with a ${negPercent}% negative reaction ratio.`;
+    }
+    return JSON.stringify(summary);
+  }
+  return `Simulation for "${concept}" targeting ${audienceLabel}.`;
+};
+
 const normalizeEmail = (value) => (value || '').trim().toLowerCase();
 
 const App = () => {
@@ -365,8 +378,8 @@ const App = () => {
             )} 
           />
           <Route path="/settings/*" element={requireAuth(<Settings onBack={() => navigate(lastView || '/agency-dashboard')} />)} />
-          <Route path="/settings/subs/change-plan" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ChangePlan onBack={() => navigate('/settings/subs')} /></div>)} />
-          <Route path="/settings/subs/payment-methods" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><PaymentMethods onBack={() => navigate('/settings/subs')} /></div>)} />
+          <Route path="/profile/subs/change-plan" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ChangePlan onBack={() => navigate('/profile', { state: { section: 'subs' } })} /></div>)} />
+          <Route path="/profile/subs/payment-methods" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><PaymentMethods onBack={() => navigate('/profile', { state: { section: 'subs' } })} /></div>)} />
           <Route path="/profile" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Profile currentPassword={userPassword} onPasswordChanged={setUserPassword} onProfileUpdated={(p) => setAvatar(p?.avatar || '')} /></div>)} />
           <Route path="/organizations" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Organizations onBack={() => navigate('/simulator')} onCreateOrg={() => navigate('/organizations/new')} /></div>)} />
           <Route path="/organizations/new" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><NewOrganization onBack={() => navigate('/organizations')} /></div>)} />
@@ -427,7 +440,7 @@ const App = () => {
                       simulation_id: sim.simulation_id,
                       concept: sim.concept,
                       audienceType: getAudienceLabel(sim.audience),
-                      summary: sim.metadata?.summary || sim.summary,
+                      summary: getSummaryText(sim.metadata?.summary || sim.summary, sim.concept, getAudienceLabel(sim.audience)),
                       backlashProbability: sim.backlash_score,
                       sentimentScore: sim.metadata?.sentiment_score || sim.sentiment_score
                     });
