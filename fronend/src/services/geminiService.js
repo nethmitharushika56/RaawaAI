@@ -136,7 +136,7 @@ export const generateReport = async (result) => {
     const data = await response.json();
     
     return {
-      title: data.title || `Simulation Report: ${result.concept}`,
+      title: data.title || 'Simulation Report',
       date: data.date,
       executiveSummary: data.executiveSummary || `Comprehensive report for simulation analyzing "${result.concept}"`,
       riskAnalysis: data.riskAnalysis,
