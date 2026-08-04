@@ -38,9 +38,11 @@ const Hero = ({ onStart, onReview }) => {
   };
 
   return (
-    <div className="relative flex flex-col items-center justify-center px-4 text-center min-h-[calc(100vh-64px)] pb-12">
-      {/* Background radial gradient glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-blue-500/10 blur-[120px] rounded-full -z-10"></div>
+    <div className="relative flex flex-col items-center justify-center px-4 text-center min-h-[calc(100vh-64px)] pb-12 overflow-hidden">
+      {/* Ambient background glows */}
+      <div className="absolute top-1/4 left-1/4 w-[350px] h-[350px] bg-cyan-500/8 blur-[100px] rounded-full -z-10 animate-pulse-slow"></div>
+      <div className="absolute bottom-1/3 right-1/4 w-[450px] h-[450px] bg-blue-600/8 blur-[130px] rounded-full -z-10 animate-pulse-slow-delayed"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-blue-500/5 blur-[120px] rounded-full -z-10"></div>
       
       <div className="flex flex-col items-center justify-center">
         {/* Version Badge */}
@@ -66,7 +68,7 @@ const Hero = ({ onStart, onReview }) => {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
           <button 
             onClick={onStart}
-            className="group relative flex items-center bg-[#1a4f63] hover:bg-[#236a85] text-white px-8 py-4 rounded-xl text-lg font-bold shadow-2xl shadow-blue-900/20 transition-all hover:scale-105 active:scale-95"
+            className="group relative flex items-center bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:via-blue-400 hover:to-indigo-500 text-white px-8 py-4 rounded-2xl text-lg font-black shadow-2xl shadow-blue-500/10 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-[0_0_30px_rgba(59,130,246,0.35)]"
           >
             Try your first simulation
             <svg className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +78,7 @@ const Hero = ({ onStart, onReview }) => {
           
           <button 
             onClick={handleReview}
-            className="flex items-center space-x-3 px-8 py-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-100 text-lg font-bold transition-all backdrop-blur-md"
+            className="flex items-center space-x-3 px-8 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-cyan-500/20 hover:text-cyan-300 text-slate-100 text-lg font-bold transition-all duration-300 backdrop-blur-md hover:shadow-[0_0_20px_rgba(6,182,212,0.15)]"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -107,12 +109,12 @@ const Hero = ({ onStart, onReview }) => {
           const Icon = card.icon;
 
           return (
-            <article key={card.title} className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-left shadow-2xl shadow-black/10 backdrop-blur-sm transition hover:-translate-y-1 hover:bg-white/[0.06]">
-              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/10 text-[#69D2E9]">
+            <article key={card.title} className="group rounded-3xl border border-white/[0.05] bg-white/[0.02] p-6 text-left shadow-2xl shadow-black/10 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/[0.05] hover:border-cyan-500/30 hover:shadow-[0_0_25px_rgba(6,182,212,0.05)]">
+              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-500/10 text-[#69D2E9] group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                 <Icon className="h-6 w-6" />
               </div>
-              <h2 className="text-xl font-bold text-slate-100">{card.title}</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-400">{card.description}</p>
+              <h2 className="text-xl font-bold text-slate-100 group-hover:text-white transition-colors">{card.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-400 group-hover:text-slate-300 transition-colors">{card.description}</p>
             </article>
           );
         })}

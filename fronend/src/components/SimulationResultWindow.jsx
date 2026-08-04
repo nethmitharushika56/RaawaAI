@@ -4,6 +4,39 @@ import { loadSimulationResult, SIMULATION_RESULT_STORAGE_KEY } from '../services
 import { downloadSimulationResultPdf } from '../utils/simulationResultPdf';
 import { scoreLabel, scoreToColor } from '../utils/heatmapUtils';
 
+const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
+
+const scoreToColor = (score) => {
+  const val = clamp(Number(score) || 0, -1, 1);
+  const ratio = Math.abs(val);
+  
+  // Base color: Slate-800/90 (30, 41, 59)
+  const base = { r: 30, g: 41, b: 59 };
+  
+  if (val >= 0) {
+    // Target: Emerald-500 (16, 185, 129)
+    const target = { r: 16, g: 185, b: 129 };
+    const r = Math.round(base.r + ratio * (target.r - base.r));
+    const g = Math.round(base.g + ratio * (target.g - base.g));
+    const b = Math.round(base.b + ratio * (target.b - base.b));
+    return `rgb(${r}, ${g}, ${b})`;
+  } else {
+    // Target: Red-500 (239, 68, 68)
+    const target = { r: 239, g: 68, b: 68 };
+    const r = Math.round(base.r + ratio * (target.r - base.r));
+    const g = Math.round(base.g + ratio * (target.g - base.g));
+    const b = Math.round(base.b + ratio * (target.b - base.b));
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+};
+
+
+const scoreLabel = (score) => {
+  if (score > 0.2) return 'Positive';
+  if (score < -0.2) return 'Negative';
+  return 'Neutral';
+};
+
 const SimulationResultWindow = ({ onClose }) => {
   const [result, setResult] = useState(() => loadSimulationResult());
   const [isDownloading, setIsDownloading] = useState(false);
@@ -203,24 +236,24 @@ const SimulationResultWindow = ({ onClose }) => {
             </div>
           </div>
 
-          <div className="overflow-x-auto pb-2">
-            <div className="min-w-[980px] space-y-3">
-              <div className="grid gap-2" style={{ gridTemplateColumns: `220px repeat(${Math.max(1, (heatmapRows[0]?.days?.length || 1))}, minmax(18px, 1fr))` }}>
-                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 py-2">Region</div>
+          <div className="overflow-x-auto pb-4 pt-12">
+            <div className="w-max space-y-2">
+              <div className="grid gap-1.5 items-center pb-2 border-b border-white/5" style={{ gridTemplateColumns: `180px repeat(${Math.max(1, (heatmapRows[0]?.days?.length || 1))}, 26px)` }}>
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 py-1">Region</div>
                 {(heatmapRows[0]?.days || []).map((day) => (
-                  <div key={day.day} className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 py-2 text-center">
+                  <div key={day.day} className="text-[9px] font-black text-slate-500 text-center select-none">
                     D{day.day}
                   </div>
                 ))}
               </div>
 
               {heatmapRows.map((row) => (
-                <div key={row.region} className="grid gap-2 items-stretch" style={{ gridTemplateColumns: `220px repeat(${row.days.length}, minmax(18px, 1fr))` }}>
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 flex flex-col justify-center">
-                    <div className="font-bold text-white">{row.region}</div>
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 mt-1">
-                      Avg {Math.round((Number(row.average) || 0) * 100)} • Vol {Math.round((Number(row.volatility) || 0) * 100)}
-                    </div>
+                <div key={row.region} className="grid gap-1.5 items-center py-1" style={{ gridTemplateColumns: `180px repeat(${row.days.length}, 26px)` }}>
+                  <div className="pr-4 py-1 flex flex-col justify-center min-w-0">
+                    <span className="font-bold text-white text-sm truncate" title={row.region}>{row.region}</span>
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 whitespace-nowrap">
+                      Avg {Number(row.average).toFixed(2)} • Vol {Number(row.volatility).toFixed(2)}
+                    </span>
                   </div>
 
                   {row.days.map((day) => {
@@ -228,13 +261,35 @@ const SimulationResultWindow = ({ onClose }) => {
                     return (
                       <div
                         key={`${row.region}-${day.day}`}
-                        title={`${row.region} | Day ${day.day} | ${scoreLabel(day.score)} (${day.score}) | ${day.count} events`}
-                        className="min-h-12 rounded-2xl border border-white/5 shadow-lg transition-transform hover:-translate-y-0.5"
-                        style={{ background: cellColor }}
+                        className="relative group w-[26px] h-[26px] flex items-center justify-center"
                       >
-                        <div className="flex h-full flex-col justify-between p-3 text-[10px] font-black uppercase tracking-[0.15em] text-white/85">
-                          <span>{scoreLabel(day.score)}</span>
-                          <span>{day.count}</span>
+                        <div
+                          className="w-full h-full rounded-[4px] border border-white/[0.04] transition-all duration-150 hover:scale-115 hover:z-20 hover:shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:border-cyan-400/40 cursor-pointer"
+                          style={{ backgroundColor: cellColor }}
+                        />
+                        
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 hidden group-hover:flex flex-col gap-1.5 z-30 w-52 rounded-2xl border border-white/10 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur-md pointer-events-none transition-all duration-200">
+                          <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                            <span className="font-bold text-white text-xs truncate max-w-[120px]" title={row.region}>{row.region}</span>
+                            <span className="text-[9px] font-black text-cyan-400 uppercase tracking-wider">Day {day.day}</span>
+                          </div>
+                          <div className="space-y-1.5 text-[11px]">
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-400">Sentiment:</span>
+                              <span className={`font-bold ${day.score > 0.2 ? 'text-emerald-400' : day.score < -0.2 ? 'text-rose-400' : 'text-slate-300'}`}>
+                                {scoreLabel(day.score)} ({Number(day.score).toFixed(2)})
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-400">Events Count:</span>
+                              <span className="font-bold text-white">{day.count}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-slate-400">Intensity:</span>
+                              <span className="font-bold text-white">{day.intensity}%</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );

@@ -4,8 +4,15 @@ from app.api.simulation import router as simulation_router
 from app.api.account import router as account_router
 from app.api.profile import router as profile_router
 from app.api.reviewer import router as reviewer_router
+from app.api.auth import router as auth_router
+from app.services.sqlite_db import init_db
 
 app = FastAPI(title="RaawaAI Backend")
+
+# Initialize database on startup
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 # Enable CORS for frontend communication
 app.add_middleware(
@@ -16,6 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api")
 app.include_router(simulation_router, prefix="/api")
 app.include_router(account_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")

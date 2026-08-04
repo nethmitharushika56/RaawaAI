@@ -6,12 +6,19 @@ const normalizeEmail = (value) => (value || '').trim().toLowerCase();
 const getCurrentUserEmail = () => normalizeEmail(localStorage.getItem('currentUserEmail'));
 
 const requestJson = async (path, options = {}) => {
+  const token = localStorage.getItem('authToken');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {}),
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
     ...options,
+    headers,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -21,6 +28,22 @@ const requestJson = async (path, options = {}) => {
 
   return data;
 };
+
+export const login = async (email, password) => requestJson('/auth/login', {
+  method: 'POST',
+  body: JSON.stringify({ email, password }),
+});
+
+export const signup = async (userData) => requestJson('/auth/signup', {
+  method: 'POST',
+  body: JSON.stringify({
+    email: userData.email,
+    password: userData.password,
+    name: userData.name,
+    company: userData.company,
+    job_title: userData.jobTitle,
+  }),
+});
 
 export const listOrganizations = async () => {
   const ownerEmail = getCurrentUserEmail();
@@ -115,11 +138,14 @@ export const saveProfile = async (profile) => {
       company: profile.company,
       job_title: profile.jobTitle,
       description: profile.description,
+      avatar: profile.avatar,
     }),
   });
 };
 
 export default {
+  login,
+  signup,
   listOrganizations,
   createOrganization,
   listPaymentMethods,

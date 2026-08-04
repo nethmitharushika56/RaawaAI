@@ -1,23 +1,32 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, X, ChevronDown, ChevronLeft } from 'lucide-react';
+import accountService from '../services/accountService';
 
-const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
+const Login = ({ onBack, onSignUp, onSignInSuccess, onReviewerSignIn }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setErrorMessage('');
     
-    // Defer the sign-in success callback by 600ms. This prevents the immediate,
-    // synchronous unmounting of the form elements, giving Google Password Manager/browser
-    // heuristics the required time to capture the submitted credentials and prompt the user.
-    setTimeout(() => {
-      onSignInSuccess(email, password);
-    }, 600);
+    try {
+      const data = await accountService.login(email, password);
+      // Save credentials & token in localStorage
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('currentUserEmail', data.user.email);
+      onSignInSuccess(data.user.email, password);
+    } catch (err) {
+      console.error(err);
+      setErrorMessage(err.message || 'Invalid email or password.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -31,7 +40,10 @@ const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
           <X size={32} />
         </button>
 
-        <div className="w-full max-w-[480px] flex flex-col items-center mt-8">
+        <div className="w-full max-w-[480px] flex flex-col items-center mt-8 bg-white/5 border border-white/10 rounded-3xl p-8 md:p-10 backdrop-blur-xl relative overflow-hidden">
+          {/* Top glow */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-transparent via-[#49C5E0]/40 to-transparent"></div>
+
           <h1 className="text-3xl font-medium mb-2 tracking-tight">Welcome Back</h1>
           <p className="text-blue-500 text-sm mb-10 font-medium">Sign in to your account to continue</p>
 
@@ -86,6 +98,12 @@ const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
               </label>
             </div>
 
+            {errorMessage && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                {errorMessage}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isSubmitting}
@@ -104,6 +122,17 @@ const Login = ({ onBack, onSignUp, onSignInSuccess }) => {
                 className="text-blue-500 hover:underline font-medium"
               >
                 Sign up
+              </button>
+            </div>
+
+            <div className="text-center text-sm pt-3 border-t border-white/5 mt-4">
+              <span className="text-slate-400">Are you a reviewer? </span>
+              <button
+                type="button"
+                onClick={onReviewerSignIn}
+                className="text-cyan-400 hover:text-cyan-300 hover:underline font-medium transition-colors"
+              >
+                Sign In as Reviewer
               </button>
             </div>
           </form>

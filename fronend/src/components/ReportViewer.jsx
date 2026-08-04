@@ -34,9 +34,32 @@ const ReportViewer = ({ report, onClose }) => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadPDF = () => {
+    const element = document.getElementById('report-pdf-content');
+    if (!element) return;
+
+    const opt = {
+      margin:       [0.5, 0.5, 0.5, 0.5],
+      filename:     `${(report.title || 'simulation-report').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { 
+        scale: 2, 
+        useCORS: true,
+        ignoreElements: (el) => el.classList.contains('no-print')
+      },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    if (window.html2pdf) {
+      window.html2pdf().set(opt).from(element).save();
+    } else {
+      window.print();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-xl flex items-start justify-center overflow-y-auto p-4 sm:p-10 no-print animate-in fade-in duration-300">
-      <div className="max-w-4xl w-full bg-white text-slate-900 rounded-[2rem] shadow-2xl overflow-hidden print:shadow-none print:rounded-none animate-in zoom-in duration-500 relative">
+      <div id="report-pdf-content" className="max-w-4xl w-full bg-white text-slate-900 rounded-[2rem] shadow-2xl overflow-hidden print:shadow-none print:rounded-none animate-in zoom-in duration-500 relative">
         
         {/* Report Header */}
         <div className="bg-slate-50 p-8 sm:p-12 border-b-8 border-slate-900 flex justify-between items-start">
@@ -57,22 +80,30 @@ const ReportViewer = ({ report, onClose }) => {
           </div>
           <div className="flex space-x-3 no-print">
             <button
+              onClick={handleDownloadPDF}
+              className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg active:scale-90"
+              title="Download PDF"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </button>
+            <button
               onClick={handleDownload}
               className="p-3 bg-slate-900 text-white rounded-full hover:bg-slate-700 transition-all shadow-lg active:scale-90"
-              title="Download report"
+              title="Download Markdown (.md)"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v12m0 0l-4-4m4 4l4-4m-8 8h8"></path></svg>
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
             </button>
             <button 
               onClick={() => window.print()}
-              className="p-3 bg-slate-100 text-slate-900 rounded-full hover:bg-blue-600 hover:text-white transition-all shadow-lg active:scale-90"
-              title="Print to PDF"
+              className="p-3 bg-slate-100 text-slate-900 rounded-full hover:bg-slate-200 transition-all shadow-lg active:scale-90"
+              title="Print Report"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
             <button 
               onClick={onClose}
               className="p-3 bg-white border border-slate-200 text-slate-400 rounded-full hover:text-red-500 transition-all hover:border-red-500 active:scale-90"
+              title="Close"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>

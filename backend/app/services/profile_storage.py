@@ -8,8 +8,9 @@ except ImportError:
 
 from app.config import AWS_REGION
 
+from app.services.sqlite_db import db_save_profile, db_get_profile
+
 PROFILES_TABLE = os.getenv("PROFILES_TABLE", "raawa-profiles")
-_fallback_profiles = {}
 
 
 def _normalize_email(value):
@@ -82,6 +83,7 @@ def _build_profile_item(profile_data):
         "company": profile_data.get("company", ""),
         "job_title": profile_data.get("job_title", ""),
         "description": profile_data.get("description", ""),
+        "avatar": profile_data.get("avatar", ""),
     }
 
 
@@ -89,8 +91,7 @@ def save_profile(profile_data):
     item = _build_profile_item(profile_data)
 
     if dynamodb_resource is None:
-        _fallback_profiles[item["profile_id"]] = item
-        return item
+        return db_save_profile(item)
 
     table = _get_table()
     table.put_item(Item=item)
@@ -103,7 +104,7 @@ def get_profile(owner_email):
         return None
 
     if dynamodb_resource is None:
-        return _fallback_profiles.get(normalized_email)
+        return db_get_profile(normalized_email)
 
     table = _get_table()
     response = table.get_item(Key={"profile_id": normalized_email})

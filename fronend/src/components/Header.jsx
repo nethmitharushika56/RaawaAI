@@ -17,7 +17,8 @@ const Header = ({
   view, 
   isAuthenticated = false,
   userRole = 'Agent', 
-  currentPath = '' 
+  currentPath = '',
+  avatar = ''
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -33,7 +34,7 @@ const Header = ({
 
   return (
     <>
-    <header className="sticky top-0 z-50 w-full shrink-0 border-b border-white/5 bg-[#050816] py-4">
+    <header className="sticky top-0 z-50 w-full shrink-0 border-b border-white/5 bg-[#020617]/75 backdrop-blur-lg py-4">
       <div className="w-full px-6 flex items-center justify-between">
         <div className="flex items-center shrink-0">
           <div 
@@ -77,26 +78,33 @@ const Header = ({
               </button>
               
               <div className="h-4 w-px bg-white/10 mx-1" />
-
+ 
               <div className="flex items-center space-x-2 min-w-0">
-                <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
                 <span className="text-sm font-medium text-slate-300">Role: {userRole}</span>
               </div>
-
+ 
               <div className="relative">
                 <button
                   onClick={() => setAccountOpen((s) => !s)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-md bg-white/5 hover:bg-white/10 text-slate-200"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/5 hover:border-white/10 transition-all font-medium text-sm"
                 >
-                  <span className="text-sm font-semibold">Account</span>
+                  {avatar ? (
+                    <img src={avatar} alt="Profile" className="h-6 w-6 rounded-full object-cover border border-white/10" />
+                  ) : (
+                    <div className="h-6 w-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-300 font-semibold border border-white/10">
+                      A
+                    </div>
+                  )}
+                  <span>Account</span>
                 </button>
-
+ 
                 {accountOpen && (
-                  <div className="absolute right-0 mt-2 w-44 bg-[#050816] border border-white/5 rounded-md shadow-lg py-1 z-50">
-                    <button onClick={() => { setAccountOpen(false); onProfile && onProfile(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-white/5">Profile</button>
-                    <button onClick={() => { setAccountOpen(false); onReviewer && onReviewer(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-white/5">Reviewer</button>
-                    <div className="border-t border-white/5 my-1" />
-                    <button onClick={() => { setAccountOpen(false); onSignOut && onSignOut(); }} className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-white/5">Sign Out</button>
+                  <div className="absolute right-0 mt-3 w-48 bg-[#0b1329]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
+                    <button onClick={() => { setAccountOpen(false); onProfile && onProfile(); }} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Profile</button>
+                    <button onClick={() => { setAccountOpen(false); onReviewer && onReviewer(); }} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Reviewer</button>
+                    <div className="border-t border-white/5 my-1.5 mx-2" />
+                    <button onClick={() => { setAccountOpen(false); onSignOut && onSignOut(); }} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors font-medium">Sign Out</button>
                   </div>
                 )}
               </div>

@@ -1,54 +1,55 @@
 # Backend Setup
 
-This backend already includes DynamoDB wiring through `app/services/dynamodb_service.py`.
-It supports two modes:
+This backend includes DynamoDB wiring through `app/services/dynamodb_service.py` as well as a local SQLite database fallback for zero-configuration persistent storage.
 
-- AWS DynamoDB using `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-- Local DynamoDB using `DYNAMODB_ENDPOINT`
+It supports two primary database modes:
+- **AWS DynamoDB** (using `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in `.env`)
+- **SQLite Database** (stored at `raawa.db` inside the backend directory, used automatically if DynamoDB is unconfigured)
 
-## Environment variables
+## Environment Variables
 
 Copy `.env.example` to `.env` and fill in the values:
 
-- `AWS_REGION` - AWS region for the table, for example `ap-south-1`
-- `DYNAMODB_TABLE` - table name, defaults to `raawa-simulations`
-- `DYNAMODB_ENDPOINT` - local endpoint such as `http://localhost:8000`
+- `AWS_REGION` - AWS region for the table (e.g. `ap-south-1`)
+- `DYNAMODB_TABLE` - DynamoDB table name (defaults to `raawa-simulations`)
+- `DYNAMODB_ENDPOINT` - local endpoint (e.g. `http://localhost:8000`)
 - `AWS_ACCESS_KEY_ID` - AWS access key for DynamoDB in AWS
 - `AWS_SECRET_ACCESS_KEY` - AWS secret key for DynamoDB in AWS
 - `OPENAI_API_KEY` - used by the LLM service layer
 
-## AWS DynamoDB connection
+## SQLite Persistent Database Fallback
+- When boto3/AWS credentials are not configured, the backend automatically stores all models (Simulations, Refinements, Reports, Users, Organizations, Profiles, and Reviews) inside a local SQLite database (`backend/raawa.db`).
+- This guarantees data is not lost on uvicorn server reloads.
 
-1. Create a DynamoDB table named `raawa-simulations` or set `DYNAMODB_TABLE` to your preferred name.
-2. Set the AWS credentials and region in `.env` or your shell environment.
-3. Install dependencies with `pip install -r requirements.txt`.
-4. Start the backend with `uvicorn app.main:app --reload --port 8000`.
+## Security & JWT Bearer Authentication
+- **Hashing**: User passwords are saved with cryptographically secure, random 16-byte salts and SHA-256 hashes.
+- **Authorization Guard**: The FastAPI router uses `Depends(get_current_user_email)` to enforce token authentication. 
+- All protected API requests must include the header:
+  `Authorization: Bearer <session_token>`
 
-## Local DynamoDB connection
+## Running and Testing the Backend Independently
 
-If you want to test without AWS, run DynamoDB Local or LocalStack and set:
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Start the backend:
+   ```bash
+   uvicorn app.main:app --reload --port 8001
+   ```
+3. Run the automated test suite:
+   ```bash
+   pytest
+   ```
 
-```env
-DYNAMODB_ENDPOINT=http://localhost:8000
-AWS_REGION=us-east-1
-```
-
-The backend will create the table automatically if it does not exist.
-
-## Notes
-
-- If `boto3` is not installed, the service falls back to an in-memory store.
-- The simulation endpoints save results, refinements, and reports to DynamoDB when the resource is available.
-
-## Docker
+## Docker Compose
 
 To run the backend with a local DynamoDB instance:
 
 1. Copy `backend/.env.example` to `backend/.env` and fill in any needed values.
 2. Start the stack from the repository root:
-
-```bash
-docker compose up --build
-```
+   ```bash
+   docker compose up --build
+   ```
 
 The backend will be available on `http://localhost:8000` and DynamoDB Local will be exposed on `http://localhost:8001`.

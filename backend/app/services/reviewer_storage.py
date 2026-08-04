@@ -12,11 +12,10 @@ from boto3.dynamodb.conditions import Attr
 
 from app.config import AWS_REGION
 
+from app.services.sqlite_db import db_save_reviewer, db_get_reviewers, db_save_review, db_get_reviews
+
 REVIEWERS_TABLE = os.getenv("REVIEWERS_TABLE", "raawa-reviewers")
 REVIEWS_TABLE = os.getenv("REVIEWS_TABLE", "raawa-reviews")
-
-_fallback_reviewers = {}
-_fallback_reviews = []
 
 
 def _normalize_email(value):
@@ -115,7 +114,7 @@ def save_reviewer(reviewer_data):
     }
 
     if dynamodb_resource is None:
-        _fallback_reviewers[item["record_id"]] = item
+        db_save_reviewer(item)
         return _public_reviewer(item)
 
     table = _get_table(REVIEWERS_TABLE)
@@ -128,11 +127,12 @@ def authenticate_reviewer(email, password, organization_id=None):
     password_hash = _hash_password(password)
 
     if dynamodb_resource is None:
-        for item in _fallback_reviewers.values():
-          if item.get("email") == normalized_email and item.get("password_hash") == password_hash:
-            if organization_id and item.get("organization_id") != organization_id:
-                continue
-            return _public_reviewer(item)
+        reviewers = db_get_reviewers()
+        for item in reviewers:
+            if item.get("email") == normalized_email and item.get("password_hash") == password_hash:
+                if organization_id and item.get("organization_id") != organization_id:
+                    continue
+                return _public_reviewer(item)
         return None
 
     table = _get_table(REVIEWERS_TABLE)
@@ -159,7 +159,7 @@ def get_reviewers(owner_email=None, organization_id=None):
         return True
 
     if dynamodb_resource is None:
-        return [_public_reviewer(item) for item in _fallback_reviewers.values() if _matches(item)]
+        return [_public_reviewer(item) for item in db_get_reviewers() if _matches(item)]
 
     table = _get_table(REVIEWERS_TABLE)
     response = table.scan(
@@ -187,8 +187,7 @@ def save_review(review_data):
     }
 
     if dynamodb_resource is None:
-        _fallback_reviews.append(item)
-        return item
+        return db_save_review(item)
 
     table = _get_table(REVIEWS_TABLE)
     table.put_item(Item=item)
@@ -209,7 +208,7 @@ def get_reviews(simulation_id=None, reviewer_email=None, organization_id=None):
         return True
 
     if dynamodb_resource is None:
-        return [item for item in _fallback_reviews if _matches(item)]
+        return [item for item in db_get_reviews() if _matches(item)]
 
     table = _get_table(REVIEWS_TABLE)
     response = table.scan(

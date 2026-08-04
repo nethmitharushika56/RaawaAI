@@ -51,7 +51,7 @@ const SimulationForm = ({ onSubmit, isLoading }) => {
               type="submit"
               disabled={isLoading || !concept.trim()}
               className={`group w-full h-[68px] rounded-2xl font-black text-white shadow-xl transition-all transform active:scale-95 flex items-center justify-center space-x-3 text-lg ${
-                isLoading ? 'bg-slate-800 cursor-not-allowed opacity-50' : 'bg-gradient-to-r from-[#1a4f63] to-[#236a85] hover:brightness-110 shadow-blue-900/20'
+                isLoading ? 'bg-slate-800 cursor-not-allowed opacity-50' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 hover:from-cyan-400 hover:via-blue-400 hover:to-indigo-500 shadow-blue-500/10 hover:shadow-[0_0_25px_rgba(59,130,246,0.3)]'
               }`}
             >
               {isLoading ? (

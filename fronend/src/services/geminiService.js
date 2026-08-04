@@ -25,16 +25,30 @@ const normalizeAudienceLabel = (audience) => {
   return 'General';
 };
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
+
 export const runSimulation = async (concept, audience) => {
+  const fidelity = Number(localStorage.getItem('simulationFidelity') ?? 50);
+  const focusGroup = localStorage.getItem('focusGroup') ?? 'local';
+
   try {
     const response = await fetch(`${API_BASE_URL}/simulation/multi_start`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         concept: concept,
-        audience: audience || 'GEN_Z'
+        audience: audience || 'GEN_Z',
+        fidelity: fidelity,
+        focus_group: focusGroup
       })
     });
 
@@ -77,9 +91,7 @@ export const refinePolicy = async (concept, summary) => {
     
     const response = await fetch(`${API_BASE_URL}/simulation/${simulationId}/refine`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         policy: concept,
         summary: summary
@@ -110,9 +122,7 @@ export const generateReport = async (result) => {
     
     const response = await fetch(`${API_BASE_URL}/simulation/${simulationId}/report`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         concept: result.concept,
         audience: result.audienceType || result.audience
@@ -161,5 +171,38 @@ export const loadSimulationResult = () => {
     return JSON.parse(raw);
   } catch {
     return null;
+  }
+};
+
+export const listSimulations = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulations`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.simulations || [];
+  } catch (error) {
+    console.error('Failed to list simulations:', error);
+    return [];
+  }
+};
+
+export const getReport = async (simulationId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/simulation/${simulationId}/report`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to get report:', error);
+    throw error;
   }
 };

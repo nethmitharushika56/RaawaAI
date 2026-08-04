@@ -24,13 +24,13 @@ const Subscriptions = () => {
       <div className="mt-6 flex gap-4">
         <button
           className="px-6 py-3 rounded-lg bg-[#3CD3AD] text-[#050816] font-semibold"
-          onClick={() => navigate('/settings/subs/change-plan')}
+          onClick={() => navigate('/profile/subs/change-plan')}
         >
           Change Plan
         </button>
         <button
           className="px-6 py-3 rounded-lg border border-white/10 text-slate-200"
-          onClick={() => navigate('/settings/subs/payment-methods')}
+          onClick={() => navigate('/profile/subs/payment-methods')}
         >
           Manage Payment Methods
         </button>

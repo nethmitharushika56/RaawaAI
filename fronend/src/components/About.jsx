@@ -37,7 +37,7 @@ const About = () => {
               'Inspect backlash risk, sentiment shifts, and refinement suggestions.',
             ].map((step, index) => (
               <div key={index} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-7 text-slate-300 flex items-start">
-                <span className="mr-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#1a4f63] text-xs font-bold text-white shrink-0">{index + 1}</span>
+                <span className="mr-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-r from-[#1061cc] to-[#49c5e0] text-[11px] font-black text-slate-950 shrink-0">{index + 1}</span>
                 <span>{step}</span>
               </div>
             ))}

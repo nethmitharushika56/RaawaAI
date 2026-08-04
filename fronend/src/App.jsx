@@ -20,9 +20,32 @@ import ChangePlan from './components/ChangePlan';
 import PaymentMethods from './components/PaymentMethods';
 import SimulationResultWindow from './components/SimulationResultWindow';
 import Footer from './components/Footer';
+import InteractiveBackground from './components/InteractiveBackground';
 import { saveProfile } from './services/accountService';
 import { runSimulation, saveSimulationId, saveSimulationResult } from './services/geminiService';
+import { runSimulation, refinePolicy, generateReport, saveSimulationId, saveSimulationResult, getReport } from './services/geminiService';
 import { ChevronLeft } from 'lucide-react';
+
+const getAudienceLabel = (aud) => {
+  if (typeof aud === 'string') return aud;
+  if (aud && typeof aud === 'object') {
+    return aud.type || aud.label || aud.demographics?.[0] || 'General';
+  }
+  return 'General';
+};
+
+const getSummaryText = (summary, concept, audienceLabel) => {
+  if (typeof summary === 'string') return summary;
+  if (summary && typeof summary === 'object') {
+    if (summary.total_events !== undefined) {
+      const negPercent = Math.round((summary.negative_ratio || 0) * 100);
+      const avgSent = Math.round((summary.average_sentiment || 0) * 100);
+      return `Simulation analyzed ${summary.total_events} events for "${concept}" targeting ${audienceLabel}. Average sentiment was ${avgSent > 0 ? '+' : ''}${avgSent} with a ${negPercent}% negative reaction ratio.`;
+    }
+    return JSON.stringify(summary);
+  }
+  return `Simulation for "${concept}" targeting ${audienceLabel}.`;
+};
 
 const normalizeEmail = (value) => (value || '').trim().toLowerCase();
 
@@ -39,6 +62,7 @@ const App = () => {
   const [showSavePassword, setShowSavePassword] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [userPassword, setUserPassword] = useState('');
+  const [avatar, setAvatar] = useState('');
 
   const getProfileKey = (email) => `profile:${normalizeEmail(email)}`;
   const saveProfileForUser = (email, profileData) => {
@@ -83,6 +107,22 @@ const App = () => {
   useEffect(() => {
     if (localStorage.getItem('currentUserEmail')) {
       setIsAuthenticated(true);
+    const token = localStorage.getItem('authToken');
+    const email = localStorage.getItem('currentUserEmail');
+    if (token && email) {
+      setIsAuthenticated(true);
+      setUserEmail(email);
+      const saved = localStorage.getItem(`profile:${normalizeEmail(email)}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed?.avatar) {
+            setAvatar(parsed.avatar);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
     }
   }, []);
 
@@ -133,7 +173,12 @@ const App = () => {
 
   const handleSignOut = () => {
     setIsAuthenticated(false);
+    setResult(null);
+    setRefinement(null);
+    setReport(null);
+    setAvatar('');
     localStorage.removeItem('currentUserEmail');
+    localStorage.removeItem('authToken');
     navigate('/');
   };
 
@@ -170,12 +215,22 @@ const App = () => {
   const isSimulationResultWindow = location.pathname === '/simulation-result';
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white flex flex-col relative animate-fade-in">
+    <div className="min-h-screen text-white flex flex-col relative animate-fade-in">
+      {/* Interactive Canvas Particle Background & Grid Overlay */}
+      <InteractiveBackground />
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden bg-transparent">
+        {/* Subtle grid pattern overlay */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-70"></div>
+        {/* Radial gradient mask for grid to fade near edges */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-[#020617]"></div>
+      </div>
+
       {!isSimulationResultWindow && (
         <Header
           view={view}
           isAuthenticated={isAuthenticated}
           userRole={userRole}
+          avatar={avatar}
           currentPath={location.pathname}
           onHome={() => navigate('/')}
           onDashboard={() => navigate('/agency-dashboard')}
@@ -195,13 +250,26 @@ const App = () => {
         />
       )}
 
-      <main className="flex-grow relative">
+      <main className="flex-grow relative z-10">
         <Routes>
           <Route path="/home" element={<Navigate to="/" replace />} />
 
           <Route
             path="/"
-            element={<div className="w-full px-6"><Hero onStart={() => navigate(isAuthenticated ? '/simulator' : '/login')} onReview={() => navigate(isAuthenticated ? '/reviewer' : '/login')} /></div>}
+            element={
+              <div className="w-full px-6">
+                <Hero
+                  onStart={() => {
+                    if (isAuthenticated) {
+                      navigate('/simulator');
+                    } else {
+                      navigate('/login', { state: { from: { pathname: '/simulator' } } });
+                    }
+                  }}
+                  onReview={() => navigate('/reviewer')}
+                />
+              </div>
+            }
           />
 
           <Route
@@ -215,11 +283,23 @@ const App = () => {
               <Login
                 onBack={() => navigate('/')}
                 onSignUp={() => navigate('/signup')}
+                onReviewerSignIn={() => navigate('/reviewer')}
                 onSignInSuccess={(email, password) => {
                   setUserEmail(email);
                   setUserPassword(password);
                   setIsAuthenticated(true);
                   localStorage.setItem('currentUserEmail', normalizeEmail(email));
+                  const saved = localStorage.getItem(`profile:${normalizeEmail(email)}`);
+                  if (saved) {
+                    try {
+                      const parsed = JSON.parse(saved);
+                      setAvatar(parsed?.avatar || '');
+                    } catch (e) {
+                      setAvatar('');
+                    }
+                  } else {
+                    setAvatar('');
+                  }
                   const redirectTo = location.state?.from?.pathname || '/agency-dashboard';
                   navigate(redirectTo, { replace: true });
                   setShowSavePassword(true);
@@ -234,6 +314,7 @@ const App = () => {
               <SignUp
                 onBack={() => navigate('/')}
                 onSignIn={() => navigate('/login')}
+                onReviewerSignIn={() => navigate('/reviewer')}
                 onSignUpSuccess={(email, password, profileData) => {
                   setUserEmail(email);
                   setUserPassword(password);
@@ -252,11 +333,28 @@ const App = () => {
             }
           />
 
-          <Route path="/agency-dashboard" element={requireAuth(<AgencyDashboard onNewSimulation={() => navigate('/simulator')} onSettings={() => { setLastView('/agency-dashboard'); navigate('/settings'); }} onReports={() => navigate('/reports')} />)} />
+          <Route 
+            path="/agency-dashboard" 
+            element={requireAuth(
+              <AgencyDashboard 
+                onNewSimulation={() => navigate('/simulator')} 
+                onSettings={() => { setLastView('/agency-dashboard'); navigate('/settings'); }} 
+                onReports={() => navigate('/reports')} 
+                onViewReport={async (id) => {
+                  try {
+                    const data = await getReport(id);
+                    setReport(data);
+                  } catch (e) {
+                    alert('Failed to load report.');
+                  }
+                }}
+              />
+            )} 
+          />
           <Route path="/settings/*" element={requireAuth(<Settings onBack={() => navigate(lastView || '/agency-dashboard')} />)} />
-          <Route path="/settings/subs/change-plan" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ChangePlan onBack={() => navigate('/settings/subs')} /></div>)} />
-          <Route path="/settings/subs/payment-methods" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><PaymentMethods onBack={() => navigate('/settings/subs')} /></div>)} />
-          <Route path="/profile" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Profile currentPassword={userPassword} onPasswordChanged={setUserPassword} /></div>)} />
+          <Route path="/profile/subs/change-plan" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ChangePlan onBack={() => navigate('/profile', { state: { section: 'subs' } })} /></div>)} />
+          <Route path="/profile/subs/payment-methods" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><PaymentMethods onBack={() => navigate('/profile', { state: { section: 'subs' } })} /></div>)} />
+          <Route path="/profile" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Profile currentPassword={userPassword} onPasswordChanged={setUserPassword} onProfileUpdated={(p) => setAvatar(p?.avatar || '')} /></div>)} />
           <Route path="/organizations" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Organizations onBack={() => navigate('/simulator')} onCreateOrg={() => navigate('/organizations/new')} /></div>)} />
           <Route path="/organizations/new" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><NewOrganization onBack={() => navigate('/organizations')} /></div>)} />
 
@@ -285,12 +383,42 @@ const App = () => {
             )}
           />
 
-          <Route path="/reports" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Reports onBack={() => navigate('/agency-dashboard')} onDetailedReport={() => navigate('/reports/strategic')} onOptimizeConcept={() => navigate('/reports/optimization')} /></div>)} />
+          <Route 
+            path="/reports" 
+            element={requireAuth(
+              <div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]">
+                <Reports 
+                  onBack={() => navigate('/agency-dashboard')} 
+                  onViewReport={async (id) => {
+                    try {
+                      const data = await getReport(id);
+                      setReport(data);
+                    } catch (e) {
+                      alert('Failed to load report.');
+                    }
+                  }} 
+                  onOptimizeConcept={(sim) => {
+                    setResult({
+                      simulation_id: sim.simulation_id,
+                      concept: sim.concept,
+                      audienceType: getAudienceLabel(sim.audience),
+                      summary: getSummaryText(sim.metadata?.summary || sim.summary, sim.concept, getAudienceLabel(sim.audience)),
+                      backlashProbability: sim.backlash_score,
+                      sentimentScore: sim.metadata?.sentiment_score || sim.sentiment_score
+                    });
+                    navigate('/simulator');
+                  }} 
+                />
+              </div>
+            )} 
+          />
           <Route path="/reports/strategic" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><StrategicReport onBack={() => navigate('/reports')} /></div>)} />
           <Route path="/reports/optimization" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><OptimizationReport onBack={() => navigate('/reports')} /></div>)} />
           <Route path="/upgrade" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Upgrade onBack={() => navigate('/simulator')} /></div>)} />
           <Route path="/reviewer" element={<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ReviewerDashboard onBack={() => navigate('/simulator')} /></div>} />
           <Route path="/simulation-result" element={<SimulationResultWindow onClose={() => navigate('/agency-dashboard')} />} />
+          <Route path="/reviewer" element={<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ReviewerDashboard onBack={() => navigate(-1)} /></div>} />
+          <Route path="/simulation-result" element={<SimulationResultWindow onClose={() => navigate('/simulator')} />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -303,6 +431,7 @@ const App = () => {
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[150px] rounded-full"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-600/5 blur-[150px] rounded-full"></div>
       </div>
+      {report && <ReportViewer report={report} onClose={() => setReport(null)} />}
     </div>
   );
 };
