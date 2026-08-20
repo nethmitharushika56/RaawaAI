@@ -62,7 +62,7 @@ const ReportViewer = ({ report, onClose }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${(report.title || 'simulation-report').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`;
+    link.download = 'simulation-report.md';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

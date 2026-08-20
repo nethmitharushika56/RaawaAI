@@ -6,9 +6,6 @@ import Login from './components/Login';
 import SignUp from './components/SignUp';
 import AgencyDashboard from './components/AgencyDashboard';
 import SimulationForm from './components/SimulationForm';
-import Dashboard from './components/Dashboard';
-import RefinementPanel from './components/RefinementPanel';
-import ReportViewer from './components/ReportViewer';
 import Organizations from './components/Organizations';
 import NewOrganization from './components/NewOrganization';
 import Reports from './components/Reports';
@@ -25,6 +22,7 @@ import SimulationResultWindow from './components/SimulationResultWindow';
 import Footer from './components/Footer';
 import InteractiveBackground from './components/InteractiveBackground';
 import { saveProfile } from './services/accountService';
+import { runSimulation, saveSimulationId, saveSimulationResult } from './services/geminiService';
 import { runSimulation, refinePolicy, generateReport, saveSimulationId, saveSimulationResult, getReport } from './services/geminiService';
 import { ChevronLeft } from 'lucide-react';
 
@@ -59,13 +57,7 @@ const App = () => {
   const [lastView, setLastView] = useState('/agency-dashboard');
   const [userRole] = useState('Agent');
 
-  const [result, setResult] = useState(null);
-  const [refinement, setRefinement] = useState(null);
-  const [report, setReport] = useState(null);
-
   const [isLoading, setIsLoading] = useState(false);
-  const [isRefining, setIsRefining] = useState(false);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const [showSavePassword, setShowSavePassword] = useState(false);
   const [userEmail, setUserEmail] = useState('');
@@ -100,6 +92,21 @@ const App = () => {
   };
 
   useEffect(() => {
+    const handleNavigateMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (location.pathname === '/simulation-result') return;
+      if (event.data?.type === 'raawaai:navigate' && event.data.path) {
+        navigate(event.data.path, { replace: true });
+      }
+    };
+
+    window.addEventListener('message', handleNavigateMessage);
+    return () => window.removeEventListener('message', handleNavigateMessage);
+  }, [navigate, location.pathname]);
+
+  useEffect(() => {
+    if (localStorage.getItem('currentUserEmail')) {
+      setIsAuthenticated(true);
     const token = localStorage.getItem('authToken');
     const email = localStorage.getItem('currentUserEmail');
     if (token && email) {
@@ -143,16 +150,13 @@ const App = () => {
       return;
     }
 
-    const resultWindow = window.open('/simulation-result', '_blank', 'noopener,noreferrer');
+    const resultWindow = window.open('/simulation-result', '_blank');
 
     setIsLoading(true);
-    setRefinement(null);
-    setReport(null);
 
     try {
       const data = await runSimulation(concept, audience);
       saveSimulationResult(data);
-      setResult(data);
       if (data?.simulation_id) {
         saveSimulationId(data.simulation_id);
       }
@@ -164,36 +168,6 @@ const App = () => {
       alert('Failed to run simulation. Please try again.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleRefine = async () => {
-    if (!result) return;
-    setIsRefining(true);
-
-    try {
-      const data = await refinePolicy(result.concept, result.summary);
-      setRefinement(data);
-    } catch (error) {
-      console.error(error);
-      alert('Failed to refine concept. Please try again.');
-    } finally {
-      setIsRefining(false);
-    }
-  };
-
-  const handleGenerateReport = async () => {
-    if (!result) return;
-    setIsGeneratingReport(true);
-
-    try {
-      const data = await generateReport(result);
-      setReport(data);
-    } catch (error) {
-      console.error(error);
-      alert('Failed to generate report. Please try again.');
-    } finally {
-      setIsGeneratingReport(false);
     }
   };
 
@@ -405,18 +379,6 @@ const App = () => {
                 </div>
 
                 <SimulationForm onSubmit={handleStartSimulation} isLoading={isLoading} />
-
-                {result && (
-                  <Dashboard
-                    result={result}
-                    onRefine={handleRefine}
-                    onGenerateReport={handleGenerateReport}
-                    isRefining={isRefining}
-                    isGeneratingReport={isGeneratingReport}
-                  />
-                )}
-
-                {refinement && <RefinementPanel refinement={refinement} onClose={() => setRefinement(null)} />}
               </div>
             )}
           />
@@ -453,6 +415,8 @@ const App = () => {
           <Route path="/reports/strategic" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><StrategicReport onBack={() => navigate('/reports')} /></div>)} />
           <Route path="/reports/optimization" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><OptimizationReport onBack={() => navigate('/reports')} /></div>)} />
           <Route path="/upgrade" element={requireAuth(<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><Upgrade onBack={() => navigate('/simulator')} /></div>)} />
+          <Route path="/reviewer" element={<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ReviewerDashboard onBack={() => navigate('/simulator')} /></div>} />
+          <Route path="/simulation-result" element={<SimulationResultWindow onClose={() => navigate('/agency-dashboard')} />} />
           <Route path="/reviewer" element={<div className="w-full px-6 py-8 min-h-[calc(100vh-80px)]"><ReviewerDashboard onBack={() => navigate(-1)} /></div>} />
           <Route path="/simulation-result" element={<SimulationResultWindow onClose={() => navigate('/simulator')} />} />
 
@@ -462,6 +426,11 @@ const App = () => {
 
       {!isReviewerOrSimulationResult && <Footer />}
 
+      {/* Decorative Background Elements */}
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none -z-20 overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[150px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-600/5 blur-[150px] rounded-full"></div>
+      </div>
       {report && <ReportViewer report={report} onClose={() => setReport(null)} />}
     </div>
   );

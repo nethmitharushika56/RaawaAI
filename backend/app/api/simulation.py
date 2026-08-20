@@ -139,7 +139,7 @@ def generate_report_endpoint(simulation_id: str, report_input: dict):
     concept = report_input.get('concept', 'RaawaAI Analysis')
     audience = report_input.get('audience', 'general')
     report_data = {
-        "title": f"Simulation Report: {concept}",
+        "title": "Simulation Report",
         "date": datetime.now(timezone.utc).strftime('%Y-%m-%d'),
         "executiveSummary": f"The simulation shows how {audience} may react to the proposed concept.",
         "riskAnalysis": f"Backlash signals are derived from persona reactions in simulation {simulation_id}.",

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, BrainCircuit, Flame, BarChart3, X, Sparkles } from 'lucide-react';
+import { ChevronLeft, BrainCircuit, Flame, BarChart3, Download, Sparkles } from 'lucide-react';
 import { loadSimulationResult, SIMULATION_RESULT_STORAGE_KEY } from '../services/geminiService';
+import { downloadSimulationResultPdf } from '../utils/simulationResultPdf';
+import { scoreLabel, scoreToColor } from '../utils/heatmapUtils';
 
 const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
 
@@ -37,6 +39,7 @@ const scoreLabel = (score) => {
 
 const SimulationResultWindow = ({ onClose }) => {
   const [result, setResult] = useState(() => loadSimulationResult());
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     document.title = 'Simulation Result - RaawaAI';
@@ -65,12 +68,45 @@ const SimulationResultWindow = ({ onClose }) => {
   }, [result]);
 
   const handleClose = () => {
-    if (window.opener) {
+    const dashboardPath = '/agency-dashboard';
+
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage(
+          { type: 'raawaai:navigate', path: dashboardPath },
+          window.location.origin,
+        );
+        window.opener.focus();
+      } catch (error) {
+        console.warn('Could not focus main application window:', error);
+      }
+
       window.close();
+
+      window.setTimeout(() => {
+        if (!window.closed) {
+          window.location.replace(dashboardPath);
+        }
+      }, 200);
       return;
     }
+
     if (typeof onClose === 'function') {
       onClose();
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!result || isDownloading) return;
+
+    setIsDownloading(true);
+    try {
+      await downloadSimulationResultPdf(result);
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      alert('Failed to generate the simulation PDF. Please try again.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -92,7 +128,7 @@ const SimulationResultWindow = ({ onClose }) => {
             className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
           >
             <ChevronLeft size={16} />
-            Back
+            Back to Agency Dashboard
           </button>
         </div>
       </div>
@@ -113,14 +149,26 @@ const SimulationResultWindow = ({ onClose }) => {
 
       <div className="relative z-10 mx-auto max-w-7xl px-6 py-8 space-y-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="inline-flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
-          >
-            <X size={16} />
-            Close Window
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+            >
+              <ChevronLeft size={16} />
+              Back to Agency Dashboard
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={isDownloading}
+              className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-5 py-3 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Download size={16} />
+              {isDownloading ? 'Generating PDF...' : 'Download PDF Report'}
+            </button>
+          </div>
 
           <div className="text-right space-y-1">
             <p className="text-[10px] font-black uppercase tracking-[0.35em] text-cyan-300">Multi-Agent Simulation Output</p>
