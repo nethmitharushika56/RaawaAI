@@ -238,7 +238,7 @@ const App = () => {
     view = 'organizations';
   }
 
-  const isSimulationResultWindow = location.pathname === '/simulation-result';
+  const isReviewerOrSimulationResult = location.pathname === '/simulation-result' || location.pathname === '/reviewer';
 
   return (
     <div className="min-h-screen text-white flex flex-col relative animate-fade-in">
@@ -251,7 +251,7 @@ const App = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-[#020617]"></div>
       </div>
 
-      {!isSimulationResultWindow && (
+      {!isReviewerOrSimulationResult && (
         <Header
           view={view}
           isAuthenticated={isAuthenticated}
@@ -460,7 +460,7 @@ const App = () => {
         </Routes>
       </main>
 
-      {!isSimulationResultWindow && <Footer />}
+      {!isReviewerOrSimulationResult && <Footer />}
 
       {report && <ReportViewer report={report} onClose={() => setReport(null)} />}
     </div>

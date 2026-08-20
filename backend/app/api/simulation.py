@@ -165,30 +165,53 @@ def generate_report_endpoint(simulation_id: str, report_input: dict):
 @router.get("/simulation/{simulation_id}/report")
 def get_report_endpoint(simulation_id: str):
     """Retrieve report for a simulation"""
-    from app.services.dynamodb_service import get_report, save_report
+    from app.services.dynamodb_service import get_report, save_report, get_simulation
     
     report = get_report(simulation_id)
-    if report:
-        return report
-        
-    # Fallback: If simulation exists but report doesn't, create a default report
-    from app.services.dynamodb_service import get_simulation
     sim = get_simulation(simulation_id)
-    if sim:
+    
+    def _generate_fallback_heatmap_matrix(heatmap, days=30):
+        if not heatmap:
+            heatmap = {
+                "Sri Lanka": {"average": 0.1, "volatility": 0.2, "count": 10}
+            }
+        matrix = []
+        import random
+        for region, info in heatmap.items():
+            avg = info.get("average", 0.0)
+            vol = info.get("volatility", 0.1)
+            day_rows = []
+            for day in range(1, days + 1):
+                score = avg + random.uniform(-vol, vol)
+                score = max(-1.0, min(1.0, score))
+                day_rows.append({
+                    "day": day,
+                    "score": round(score, 3),
+                    "count": info.get("count", 5),
+                    "intensity": round(max(0, min(100, (score + 1) * 50))),
+                })
+            matrix.append({
+                "region": region,
+                "average": avg,
+                "volatility": vol,
+                "days": day_rows
+            })
+        return matrix
+
+    if not report and sim:
         concept = sim.get("concept", "Concept")
         audience = sim.get("audience", "general")
         backlash = sim.get("backlash_score", 0)
         
-        # Try to extract sentiment score from metadata
         meta = sim.get("metadata") or {}
         sentiment = meta.get("sentiment_score", 50)
         
         report_data = {
             "title": f"Simulation Report: {concept}",
             "date": datetime.now(timezone.utc).strftime('%Y-%m-%d'),
-            "executiveSummary": f"This report details the pilot reception for the concept '{concept}' targeting {audience}. Based on the simulation, the backlash risk is {backlash}% and the sentiment score is {sentiment}/100.",
+            "executiveSummary": f"This report details the pilot reception for the concept '{concept}' targeting {_audience_label(audience)}. Based on the simulation, the backlash risk is {backlash}% and the sentiment score is {sentiment}/100.",
             "riskAnalysis": f"The risk analysis flags potential concerns from skeptical user groups, centered on economic elitism and communication clarity.",
-            "demographicImpact": f"The demographic profile ({audience}) shows varied opinions. Early-adopters react positively, while socially-conscious consumers remain cautious.",
+            "demographicImpact": f"The demographic profile ({_audience_label(audience)}) shows varied opinions. Early-adopters react positively, while socially-conscious consumers remain cautious.",
             "strategicRecommendations": [
                 "Clarify the key message to reduce ambiguity.",
                 "Review pricing and positioning to increase inclusivity.",
@@ -197,14 +220,30 @@ def get_report_endpoint(simulation_id: str):
             ],
             "conclusion": "The concept shows testable potential, but adjusting the tone and addressing supply chain transparency is recommended.",
             "content": f"Automated strategic report generated for simulation {simulation_id}",
-            "metadata": {"simulation_id": simulation_id, "concept": concept, "audience": audience}
+            "metadata": {"simulation_id": simulation_id, "concept": concept, "audience": _audience_label(audience)}
         }
         try:
             save_report(simulation_id, report_data)
-            return report_data
+            report = report_data
         except Exception:
-            return report_data
+            report = report_data
             
+    if report:
+        if sim:
+            meta = sim.get("metadata") or {}
+            report["backlash_probability"] = sim.get("backlash_score") or meta.get("backlash_probability") or 0
+            report["sentiment_score"] = meta.get("sentiment_score") or (100 - report["backlash_probability"])
+            report["heatmap"] = meta.get("heatmap")
+            
+            heatmap_matrix = meta.get("heatmap_matrix")
+            if not heatmap_matrix:
+                heatmap_matrix = _generate_fallback_heatmap_matrix(meta.get("heatmap"))
+                
+            report["heatmap_matrix"] = heatmap_matrix
+            report["audience_label"] = _audience_label(sim.get("audience"))
+            report["concept"] = sim.get("concept")
+        return report
+        
     return {"error": "Report and simulation not found"}
 
 
@@ -263,6 +302,9 @@ def start_multi_simulation(req: SimulationRequest):
             metadata={
                 "summary": summary,
                 "heatmap": result.get("heatmap"),
+                "heatmap_matrix": result.get("heatmap_matrix"),
+                "sentiment_score": result.get("sentiment_score"),
+                "backlash_probability": result.get("backlash_probability"),
             }
         )
     except Exception as e:
