@@ -4,7 +4,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from app.services.sqlite_db import save_user, get_user, create_session, verify_session_token, delete_session
+from app.services.user_storage import save_user, get_user, create_session, verify_session_token, delete_session
 
 router = APIRouter(prefix="/auth")
 
