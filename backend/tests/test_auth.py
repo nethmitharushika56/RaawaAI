@@ -3,11 +3,11 @@ import pytest
 import os
 from app.main import app
 from app.services.sqlite_db import get_db_connection, init_db
-from app.services.user_storage import dynamodb_resource, USERS_TABLE, SESSIONS_TABLE
+from app.services.user_storage import dynamodb_resource, TABLE_NAME
 try:
-    from boto3.dynamodb.conditions import Attr
+    from boto3.dynamodb.conditions import Key
 except ImportError:
-    Attr = None
+    Key = None
 
 client = TestClient(app)
 
@@ -25,18 +25,18 @@ def clean_db():
     # Clean DynamoDB if configured
     if dynamodb_resource is not None:
         try:
-            users_table = dynamodb_resource.Table(USERS_TABLE)
-            users_table.delete_item(Key={"email": "testuser@raawa.ai"})
+            table = dynamodb_resource.Table(TABLE_NAME)
+            table.delete_item(Key={"PK": "USER#testuser@raawa.ai", "SK": "METADATA"})
         except Exception:
             pass
-        if Attr is not None:
+        if Key is not None:
             try:
-                sessions_table = dynamodb_resource.Table(SESSIONS_TABLE)
-                response = sessions_table.scan(
-                    FilterExpression=Attr("email").eq("testuser@raawa.ai")
+                response = table.query(
+                    IndexName="GSI1",
+                    KeyConditionExpression=Key("GSI1-PK").eq("USER#testuser@raawa.ai")
                 )
                 for item in response.get("Items", []):
-                    sessions_table.delete_item(Key={"token": item["token"]})
+                    table.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
             except Exception:
                 pass
     yield

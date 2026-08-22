@@ -39,6 +39,7 @@ logs/
 # Environment variables / secrets
 .env
 .env.*
+!.env.example
 secrets/
 *.pem
 *.key

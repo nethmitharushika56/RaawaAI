@@ -2,20 +2,12 @@ import os
 import re
 import uuid
 from datetime import datetime
-
-try:
-    import boto3
-except ImportError:
-    boto3 = None
-
-from boto3.dynamodb.conditions import Attr
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
 
 from app.config import AWS_REGION
 
-from app.services.sqlite_db import db_save_organization, db_get_organizations, db_save_payment_method, db_get_payment_methods
-
-ORGANIZATIONS_TABLE = os.getenv("ORGANIZATIONS_TABLE", "raawa-organizations")
-PAYMENT_METHODS_TABLE = os.getenv("PAYMENT_METHODS_TABLE", "raawa-payment-methods")
+TABLE_NAME = os.getenv("DYNAMODB_TABLE", "raawa-data")
 
 
 def _normalize_email(value):
@@ -23,72 +15,76 @@ def _normalize_email(value):
 
 
 def _create_resource():
-    if boto3 is None:
-        return None
+    region = os.getenv("AWS_REGION", AWS_REGION)
+    endpoint = os.getenv("DYNAMODB_ENDPOINT")
 
-    if os.getenv("DYNAMODB_ENDPOINT"):
+    if endpoint:
         return boto3.resource(
             "dynamodb",
-            region_name=os.getenv("AWS_REGION", AWS_REGION),
-            endpoint_url=os.getenv("DYNAMODB_ENDPOINT"),
+            region_name=region,
+            endpoint_url=endpoint,
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "dummy"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "dummy"),
         )
-
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    if not access_key or not secret_key:
-        return None
 
     return boto3.resource(
         "dynamodb",
-        region_name=os.getenv("AWS_REGION", AWS_REGION),
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
+        region_name=region,
     )
 
 
 dynamodb_resource = _create_resource()
 
 
-def _get_table(table_name):
-    if dynamodb_resource is None:
-        return None
-
+def _get_table():
     try:
-        table = dynamodb_resource.Table(table_name)
+        table = dynamodb_resource.Table(TABLE_NAME)
         table.load()
         return table
     except Exception:
         try:
             table = dynamodb_resource.create_table(
-                TableName=table_name,
+                TableName=TABLE_NAME,
                 KeySchema=[
-                    {"AttributeName": "record_id", "KeyType": "HASH"},
-                    {"AttributeName": "created_at", "KeyType": "RANGE"},
+                    {"AttributeName": "PK", "KeyType": "HASH"},
+                    {"AttributeName": "SK", "KeyType": "RANGE"}
                 ],
                 AttributeDefinitions=[
-                    {"AttributeName": "record_id", "AttributeType": "S"},
-                    {"AttributeName": "created_at", "AttributeType": "S"},
+                    {"AttributeName": "PK", "AttributeType": "S"},
+                    {"AttributeName": "SK", "AttributeType": "S"},
+                    {"AttributeName": "GSI1-PK", "AttributeType": "S"},
+                    {"AttributeName": "GSI1-SK", "AttributeType": "S"}
+                ],
+                GlobalSecondaryIndexes=[
+                    {
+                        "IndexName": "GSI1",
+                        "KeySchema": [
+                            {"AttributeName": "GSI1-PK", "KeyType": "HASH"},
+                            {"AttributeName": "GSI1-SK", "KeyType": "RANGE"}
+                        ],
+                        "Projection": {
+                            "ProjectionType": "ALL"
+                        }
+                    }
                 ],
                 BillingMode="PAY_PER_REQUEST",
             )
             table.wait_until_exists()
             return table
         except Exception as e:
-            print(f"Error creating table {table_name}: {e}")
+            print(f"Error creating table {TABLE_NAME}: {e}")
             raise
-
-
-def _filter_items(items, owner_email=None):
-    normalized_email = _normalize_email(owner_email)
-    if normalized_email:
-        return [item for item in items if _normalize_email(item.get("owner_email")) == normalized_email]
-    return list(items)
 
 
 def save_organization(org_data):
     owner_email = _normalize_email(org_data.get("owner_email"))
+    record_id = f"org:{owner_email}:{uuid.uuid4()}"
     item = {
-        "record_id": f"org:{owner_email}:{uuid.uuid4()}",
+        "PK": f"ORG#{owner_email}",
+        "SK": f"ORG#{record_id}",
+        "GSI1-PK": f"ORG#{record_id}",
+        "GSI1-SK": "METADATA",
+        "record_id": record_id,
         "created_at": datetime.utcnow().isoformat(),
         "entity_type": "organization",
         "owner_email": owner_email,
@@ -98,33 +94,37 @@ def save_organization(org_data):
         "description": org_data.get("description", ""),
     }
 
-    if dynamodb_resource is None:
-        return db_save_organization(item)
-
-    table = _get_table(ORGANIZATIONS_TABLE)
+    table = _get_table()
     table.put_item(Item=item)
     return item
 
 
 def get_organizations(owner_email=None):
-    if dynamodb_resource is None:
-        return db_get_organizations(owner_email)
+    table = _get_table()
+    normalized_email = _normalize_email(owner_email)
 
-    table = _get_table(ORGANIZATIONS_TABLE)
-    response = table.scan(
-        FilterExpression=Attr("entity_type").eq("organization")
-    )
-    items = response.get("Items", [])
-    return _filter_items(items, owner_email)
+    if normalized_email:
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"ORG#{normalized_email}") & Key("SK").begins_with("ORG#")
+        )
+        return response.get("Items", [])
+    else:
+        response = table.scan(
+            FilterExpression=Attr("entity_type").eq("organization")
+        )
+        return response.get("Items", [])
 
 
 def save_payment_method(payment_data):
     owner_email = _normalize_email(payment_data.get("owner_email"))
     card_number = re.sub(r"\D", "", payment_data.get("card_number", ""))
     last4 = card_number[-4:] if card_number else ""
+    record_id = f"payment:{owner_email}:{uuid.uuid4()}"
 
     item = {
-        "record_id": f"payment:{owner_email}:{uuid.uuid4()}",
+        "PK": f"PM#{owner_email}",
+        "SK": f"PM#{record_id}",
+        "record_id": record_id,
         "created_at": datetime.utcnow().isoformat(),
         "entity_type": "payment_method",
         "owner_email": owner_email,
@@ -135,21 +135,22 @@ def save_payment_method(payment_data):
         "last4": last4,
     }
 
-    if dynamodb_resource is None:
-        return db_save_payment_method(item)
-
-    table = _get_table(PAYMENT_METHODS_TABLE)
+    table = _get_table()
     table.put_item(Item=item)
     return item
 
 
 def get_payment_methods(owner_email=None):
-    if dynamodb_resource is None:
-        return db_get_payment_methods(owner_email)
+    table = _get_table()
+    normalized_email = _normalize_email(owner_email)
 
-    table = _get_table(PAYMENT_METHODS_TABLE)
-    response = table.scan(
-        FilterExpression=Attr("entity_type").eq("payment_method")
-    )
-    items = response.get("Items", [])
-    return _filter_items(items, owner_email)
+    if normalized_email:
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"PM#{normalized_email}") & Key("SK").begins_with("PM#")
+        )
+        return response.get("Items", [])
+    else:
+        response = table.scan(
+            FilterExpression=Attr("entity_type").eq("payment_method")
+        )
+        return response.get("Items", [])

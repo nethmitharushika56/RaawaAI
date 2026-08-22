@@ -1,45 +1,29 @@
 import os
 from datetime import datetime, timezone
 from decimal import Decimal
+import boto3
+from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
-try:
-    import boto3
-except ImportError:
-    boto3 = None
-
-from app.services.sqlite_db import (
-    db_save_simulation,
-    db_get_simulation,
-    db_get_all_simulations,
-    db_save_refinement,
-    db_save_report,
-    db_get_report,
-)
-
-TABLE_NAME = os.getenv('DYNAMODB_TABLE', 'raawa-simulations')
+TABLE_NAME = os.getenv('DYNAMODB_TABLE', 'raawa-data')
 
 
 def _create_resource():
-    if boto3 is None:
-        return None
+    region = os.getenv("AWS_REGION", "ap-south-1")
+    endpoint = os.getenv("DYNAMODB_ENDPOINT")
 
-    if os.getenv('DYNAMODB_ENDPOINT'):
+    if endpoint:
         return boto3.resource(
-            'dynamodb',
-            region_name=os.getenv('AWS_REGION', 'us-east-1'),
-            endpoint_url=os.getenv('DYNAMODB_ENDPOINT')
+            "dynamodb",
+            region_name=region,
+            endpoint_url=endpoint,
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "dummy"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "dummy"),
         )
 
-    access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-    if not access_key or not secret_key:
-        return None
-
     return boto3.resource(
-        'dynamodb',
-        region_name=os.getenv('AWS_REGION', 'us-east-1'),
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key
+        "dynamodb",
+        region_name=region,
     )
 
 
@@ -47,42 +31,62 @@ dynamodb_resource = _create_resource()
 
 
 def get_table():
-    """Get DynamoDB table"""
-    if dynamodb_resource is None:
-        return None
+    """Get or create the DynamoDB table"""
+    table = dynamodb_resource.Table(TABLE_NAME)
 
     try:
-        table = dynamodb_resource.Table(TABLE_NAME)
         table.load()
         return table
-    except Exception as e:
-        print(f"Error accessing DynamoDB table: {e}")
-        # Create table if it doesn't exist
-        try:
-            table = dynamodb_resource.create_table(
-                TableName=TABLE_NAME,
-                KeySchema=[
-                    {'AttributeName': 'simulation_id', 'KeyType': 'HASH'},
-                    {'AttributeName': 'created_at', 'KeyType': 'RANGE'}
-                ],
-                AttributeDefinitions=[
-                    {'AttributeName': 'simulation_id', 'AttributeType': 'S'},
-                    {'AttributeName': 'created_at', 'AttributeType': 'S'}
-                ],
-                BillingMode='PAY_PER_REQUEST'
-            )
-            table.wait_until_exists()
-            return table
-        except Exception as create_error:
-            print(f"Error creating DynamoDB table: {create_error}")
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        if error_code != "ResourceNotFoundException":
             raise
+
+    print(f"Creating DynamoDB table '{TABLE_NAME}'...")
+    try:
+        table = dynamodb_resource.create_table(
+            TableName=TABLE_NAME,
+            KeySchema=[
+                {'AttributeName': 'PK', 'KeyType': 'HASH'},
+                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'PK', 'AttributeType': 'S'},
+                {'AttributeName': 'SK', 'AttributeType': 'S'},
+                {'AttributeName': 'GSI1-PK', 'AttributeType': 'S'},
+                {'AttributeName': 'GSI1-SK', 'AttributeType': 'S'}
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    'IndexName': 'GSI1',
+                    'KeySchema': [
+                        {'AttributeName': 'GSI1-PK', 'KeyType': 'HASH'},
+                        {'AttributeName': 'GSI1-SK', 'KeyType': 'RANGE'}
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    }
+                }
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+        table.wait_until_exists()
+        return table
+    except Exception as create_error:
+        print(f"Error creating DynamoDB table: {create_error}")
+        raise
 
 
 def save_simulation(simulation_id, concept, audience, backlash_score, sample_posts, metadata=None):
-    """Save simulation result to DynamoDB or SQLite fallback"""
+    """Save simulation result to DynamoDB"""
+    created_at = datetime.now(timezone.utc).isoformat()
     item = {
+        'PK': f"SIM#{simulation_id}",
+        'SK': "METADATA",
+        'GSI1-PK': "ALL_SIMULATIONS",
+        'GSI1-SK': created_at,
         'simulation_id': simulation_id,
-        'created_at': datetime.now(timezone.utc).isoformat(),
+        'created_at': created_at,
         'concept': concept,
         'audience': audience,
         'backlash_score': float(backlash_score),
@@ -90,12 +94,8 @@ def save_simulation(simulation_id, concept, audience, backlash_score, sample_pos
         'metadata': metadata or {}
     }
 
-    if dynamodb_resource is None:
-        return db_save_simulation(item)
-
     try:
         table = get_table()
-        
         dynamo_item = dict(item)
         dynamo_item['backlash_score'] = Decimal(str(backlash_score))
         
@@ -108,18 +108,18 @@ def save_simulation(simulation_id, concept, audience, backlash_score, sample_pos
 
 def get_simulation(simulation_id):
     """Retrieve a simulation by ID"""
-    if dynamodb_resource is None:
-        return db_get_simulation(simulation_id)
-
     try:
         table = get_table()
-        from boto3.dynamodb.conditions import Attr
-
-        response = table.scan(
-            FilterExpression=Attr('simulation_id').eq(simulation_id)
+        response = table.get_item(
+            Key={
+                'PK': f"SIM#{simulation_id}",
+                'SK': "METADATA"
+            }
         )
-        items = response.get('Items', [])
-        return items[0] if items else None
+        item = response.get('Item')
+        if item and 'backlash_score' in item:
+            item['backlash_score'] = float(item['backlash_score'])
+        return item
     except Exception as e:
         print(f"Error retrieving simulation: {e}")
         return None
@@ -127,13 +127,18 @@ def get_simulation(simulation_id):
 
 def get_all_simulations():
     """Get all simulations"""
-    if dynamodb_resource is None:
-        return db_get_all_simulations()
-
     try:
         table = get_table()
-        response = table.scan()
-        return response.get('Items', [])
+        response = table.query(
+            IndexName="GSI1",
+            KeyConditionExpression=Key("GSI1-PK").eq("ALL_SIMULATIONS"),
+            ScanIndexForward=False
+        )
+        items = response.get('Items', [])
+        for item in items:
+            if 'backlash_score' in item:
+                item['backlash_score'] = float(item['backlash_score'])
+        return items
     except Exception as e:
         print(f"Error scanning simulations: {e}")
         return []
@@ -141,17 +146,17 @@ def get_all_simulations():
 
 def save_refinement(simulation_id, refinement_data):
     """Save refinement data for a simulation"""
+    refinement_id = f"{simulation_id}-refinement"
     item = {
-        'simulation_id': f"{simulation_id}-refinement",
+        'PK': f"SIM#{simulation_id}",
+        'SK': f"REFINEMENT#{refinement_id}",
+        'simulation_id': refinement_id,
         'created_at': datetime.now(timezone.utc).isoformat(),
         'parent_simulation_id': simulation_id,
         'policy': refinement_data.get('policy'),
         'recommendations': refinement_data.get('recommendations'),
         'metadata': refinement_data.get('metadata', {})
     }
-
-    if dynamodb_resource is None:
-        return db_save_refinement(item)
 
     try:
         table = get_table()
@@ -174,17 +179,17 @@ def save_report(simulation_id, report_data):
         'date': report_data.get('date') or datetime.now(timezone.utc).strftime('%Y-%m-%d'),
     }
     
+    report_id = f"{simulation_id}-report"
     item = {
-        'simulation_id': f"{simulation_id}-report",
+        'PK': f"SIM#{simulation_id}",
+        'SK': f"REPORT#{report_id}",
+        'simulation_id': report_id,
         'created_at': datetime.now(timezone.utc).isoformat(),
         'parent_simulation_id': simulation_id,
         'title': report_data.get('title'),
         'content': report_data.get('content') or "",
         'metadata': metadata
     }
-
-    if dynamodb_resource is None:
-        return db_save_report(item)
 
     try:
         table = get_table()
@@ -197,21 +202,16 @@ def save_report(simulation_id, report_data):
 
 def get_report(simulation_id):
     """Retrieve report for a simulation"""
-    if dynamodb_resource is None:
-        raw_report = db_get_report(simulation_id)
-    else:
-        try:
-            table = get_table()
-            from boto3.dynamodb.conditions import Attr
-            report_id = f"{simulation_id}-report"
-            response = table.scan(
-                FilterExpression=Attr('simulation_id').eq(report_id) | Attr('parent_simulation_id').eq(simulation_id)
-            )
-            items = response.get('Items', [])
-            raw_report = items[0] if items else None
-        except Exception as e:
-            print(f"Error retrieving report: {e}")
-            raw_report = None
+    try:
+        table = get_table()
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"SIM#{simulation_id}") & Key("SK").begins_with("REPORT#")
+        )
+        items = response.get('Items', [])
+        raw_report = items[0] if items else None
+    except Exception as e:
+        print(f"Error retrieving report: {e}")
+        raw_report = None
 
     if not raw_report:
         return None

@@ -2,20 +2,12 @@ import hashlib
 import os
 import uuid
 from datetime import datetime, timezone
-
-try:
-    import boto3
-except ImportError:
-    boto3 = None
-
-from boto3.dynamodb.conditions import Attr
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
 
 from app.config import AWS_REGION
 
-from app.services.sqlite_db import db_save_reviewer, db_get_reviewers, db_save_review, db_get_reviews
-
-REVIEWERS_TABLE = os.getenv("REVIEWERS_TABLE", "raawa-reviewers")
-REVIEWS_TABLE = os.getenv("REVIEWS_TABLE", "raawa-reviews")
+TABLE_NAME = os.getenv("DYNAMODB_TABLE", "raawa-data")
 
 
 def _normalize_email(value):
@@ -23,58 +15,64 @@ def _normalize_email(value):
 
 
 def _create_resource():
-    if boto3 is None:
-        return None
+    region = os.getenv("AWS_REGION", AWS_REGION)
+    endpoint = os.getenv("DYNAMODB_ENDPOINT")
 
-    if os.getenv("DYNAMODB_ENDPOINT"):
+    if endpoint:
         return boto3.resource(
             "dynamodb",
-            region_name=os.getenv("AWS_REGION", AWS_REGION),
-            endpoint_url=os.getenv("DYNAMODB_ENDPOINT"),
+            region_name=region,
+            endpoint_url=endpoint,
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "dummy"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "dummy"),
         )
-
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    if not access_key or not secret_key:
-        return None
 
     return boto3.resource(
         "dynamodb",
-        region_name=os.getenv("AWS_REGION", AWS_REGION),
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
+        region_name=region,
     )
 
 
 dynamodb_resource = _create_resource()
 
 
-def _get_table(table_name):
-    if dynamodb_resource is None:
-        return None
-
+def _get_table():
     try:
-        table = dynamodb_resource.Table(table_name)
+        table = dynamodb_resource.Table(TABLE_NAME)
         table.load()
         return table
     except Exception:
         try:
             table = dynamodb_resource.create_table(
-                TableName=table_name,
+                TableName=TABLE_NAME,
                 KeySchema=[
-                    {"AttributeName": "record_id", "KeyType": "HASH"},
-                    {"AttributeName": "created_at", "KeyType": "RANGE"},
+                    {"AttributeName": "PK", "KeyType": "HASH"},
+                    {"AttributeName": "SK", "KeyType": "RANGE"}
                 ],
                 AttributeDefinitions=[
-                    {"AttributeName": "record_id", "AttributeType": "S"},
-                    {"AttributeName": "created_at", "AttributeType": "S"},
+                    {"AttributeName": "PK", "AttributeType": "S"},
+                    {"AttributeName": "SK", "AttributeType": "S"},
+                    {"AttributeName": "GSI1-PK", "AttributeType": "S"},
+                    {"AttributeName": "GSI1-SK", "AttributeType": "S"}
+                ],
+                GlobalSecondaryIndexes=[
+                    {
+                        "IndexName": "GSI1",
+                        "KeySchema": [
+                            {"AttributeName": "GSI1-PK", "KeyType": "HASH"},
+                            {"AttributeName": "GSI1-SK", "KeyType": "RANGE"}
+                        ],
+                        "Projection": {
+                            "ProjectionType": "ALL"
+                        }
+                    }
                 ],
                 BillingMode="PAY_PER_REQUEST",
             )
             table.wait_until_exists()
             return table
         except Exception as e:
-            print(f"Error creating table {table_name}: {e}")
+            print(f"Error creating table {TABLE_NAME}: {e}")
             raise
 
 
@@ -90,17 +88,17 @@ def _public_reviewer(item):
     return sanitized
 
 
-def _reviewer_key(organization_id, email):
-    return f"reviewer:{organization_id}:{_normalize_email(email)}"
-
-
 def save_reviewer(reviewer_data):
     organization_id = (reviewer_data.get("organization_id") or "").strip()
     reviewer_email = _normalize_email(reviewer_data.get("email"))
     now = datetime.now(timezone.utc).isoformat()
 
     item = {
-        "record_id": _reviewer_key(organization_id, reviewer_email),
+        "PK": f"ORG#{organization_id}",
+        "SK": f"REVIEWER#{reviewer_email}",
+        "GSI1-PK": f"REVIEWER#{reviewer_email}",
+        "GSI1-SK": f"ORG#{organization_id}",
+        "record_id": f"reviewer:{organization_id}:{reviewer_email}",
         "created_at": now,
         "entity_type": "reviewer",
         "organization_id": organization_id,
@@ -113,11 +111,7 @@ def save_reviewer(reviewer_data):
         "status": "active",
     }
 
-    if dynamodb_resource is None:
-        db_save_reviewer(item)
-        return _public_reviewer(item)
-
-    table = _get_table(REVIEWERS_TABLE)
+    table = _get_table()
     table.put_item(Item=item)
     return _public_reviewer(item)
 
@@ -126,21 +120,13 @@ def authenticate_reviewer(email, password, organization_id=None):
     normalized_email = _normalize_email(email)
     password_hash = _hash_password(password)
 
-    if dynamodb_resource is None:
-        reviewers = db_get_reviewers()
-        for item in reviewers:
-            if item.get("email") == normalized_email and item.get("password_hash") == password_hash:
-                if organization_id and item.get("organization_id") != organization_id:
-                    continue
-                return _public_reviewer(item)
-        return None
-
-    table = _get_table(REVIEWERS_TABLE)
-    response = table.scan(
-        FilterExpression=Attr("entity_type").eq("reviewer")
+    table = _get_table()
+    response = table.query(
+        IndexName="GSI1",
+        KeyConditionExpression=Key("GSI1-PK").eq(f"REVIEWER#{normalized_email}")
     )
     for item in response.get("Items", []):
-        if item.get("email") == normalized_email and item.get("password_hash") == password_hash:
+        if item.get("password_hash") == password_hash:
             if organization_id and item.get("organization_id") != organization_id:
                 continue
             return _public_reviewer(item)
@@ -151,33 +137,55 @@ def get_reviewers(owner_email=None, organization_id=None):
     normalized_owner = _normalize_email(owner_email)
     normalized_org = (organization_id or "").strip()
 
-    def _matches(item):
-        if normalized_owner and _normalize_email(item.get("organization_owner_email")) != normalized_owner:
-            return False
-        if normalized_org and item.get("organization_id") != normalized_org:
-            return False
-        return True
+    table = _get_table()
 
-    if dynamodb_resource is None:
-        return [_public_reviewer(item) for item in db_get_reviewers() if _matches(item)]
+    if normalized_org:
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"ORG#{normalized_org}") & Key("SK").begins_with("REVIEWER#")
+        )
+        items = response.get("Items", [])
+        if normalized_owner:
+            items = [i for i in items if _normalize_email(i.get("organization_owner_email")) == normalized_owner]
+        return [_public_reviewer(item) for item in items]
 
-    table = _get_table(REVIEWERS_TABLE)
-    response = table.scan(
-        FilterExpression=Attr("entity_type").eq("reviewer")
-    )
-    return [_public_reviewer(item) for item in response.get("Items", []) if _matches(item)]
+    elif normalized_owner:
+        org_response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"ORG#{normalized_owner}") & Key("SK").begins_with("ORG#")
+        )
+        org_ids = [item.get("record_id") for item in org_response.get("Items", [])]
+        
+        items = []
+        for org_id in org_ids:
+            if org_id:
+                rev_response = table.query(
+                    KeyConditionExpression=Key("PK").eq(f"ORG#{org_id}") & Key("SK").begins_with("REVIEWER#")
+                )
+                items.extend(rev_response.get("Items", []))
+        return [_public_reviewer(item) for item in items]
+
+    else:
+        response = table.scan(
+            FilterExpression=Attr("entity_type").eq("reviewer")
+        )
+        return [_public_reviewer(item) for item in response.get("Items", [])]
 
 
 def save_review(review_data):
     organization_id = (review_data.get("organization_id") or "").strip()
     reviewer_email = _normalize_email(review_data.get("reviewer_email"))
+    simulation_id = review_data.get("simulation_id", "")
     now = datetime.now(timezone.utc).isoformat()
+    record_id = f"review:{simulation_id}:{reviewer_email}:{uuid.uuid4()}"
 
     item = {
-        "record_id": f"review:{review_data.get('simulation_id', '')}:{reviewer_email}:{uuid.uuid4()}",
+        "PK": f"SIM#{simulation_id}",
+        "SK": f"REVIEW#{reviewer_email}",
+        "GSI1-PK": f"ORG#{organization_id}",
+        "GSI1-SK": f"REVIEW#{simulation_id}",
+        "record_id": record_id,
         "created_at": now,
         "entity_type": "review",
-        "simulation_id": review_data.get("simulation_id", ""),
+        "simulation_id": simulation_id,
         "organization_id": organization_id,
         "organization_name": review_data.get("organization_name", ""),
         "reviewer_email": reviewer_email,
@@ -186,10 +194,7 @@ def save_review(review_data):
         "review_text": review_data.get("review_text", ""),
     }
 
-    if dynamodb_resource is None:
-        return db_save_review(item)
-
-    table = _get_table(REVIEWS_TABLE)
+    table = _get_table()
     table.put_item(Item=item)
     return item
 
@@ -198,20 +203,37 @@ def get_reviews(simulation_id=None, reviewer_email=None, organization_id=None):
     normalized_email = _normalize_email(reviewer_email)
     normalized_org = (organization_id or "").strip()
 
-    def _matches(item):
-        if simulation_id and item.get("simulation_id") != simulation_id:
-            return False
-        if normalized_email and _normalize_email(item.get("reviewer_email")) != normalized_email:
-            return False
-        if normalized_org and item.get("organization_id") != normalized_org:
-            return False
-        return True
+    table = _get_table()
 
-    if dynamodb_resource is None:
-        return [item for item in db_get_reviews() if _matches(item)]
+    if simulation_id:
+        response = table.query(
+            KeyConditionExpression=Key("PK").eq(f"SIM#{simulation_id}") & Key("SK").begins_with("REVIEW#")
+        )
+        items = response.get("Items", [])
+        if normalized_email:
+            items = [item for item in items if _normalize_email(item.get("reviewer_email")) == normalized_email]
+        if normalized_org:
+            items = [item for item in items if item.get("organization_id") == normalized_org]
+        return items
 
-    table = _get_table(REVIEWS_TABLE)
-    response = table.scan(
-        FilterExpression=Attr("entity_type").eq("review")
-    )
-    return [item for item in response.get("Items", []) if _matches(item)]
+    elif normalized_org:
+        response = table.query(
+            IndexName="GSI1",
+            KeyConditionExpression=Key("GSI1-PK").eq(f"ORG#{normalized_org}") & Key("GSI1-SK").begins_with("REVIEW#")
+        )
+        items = response.get("Items", [])
+        if normalized_email:
+            items = [item for item in items if _normalize_email(item.get("reviewer_email")) == normalized_email]
+        return items
+
+    elif normalized_email:
+        response = table.scan(
+            FilterExpression=Attr("entity_type").eq("review") & Attr("reviewer_email").eq(normalized_email)
+        )
+        return response.get("Items", [])
+
+    else:
+        response = table.scan(
+            FilterExpression=Attr("entity_type").eq("review")
+        )
+        return response.get("Items", [])

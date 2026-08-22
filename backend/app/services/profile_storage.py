@@ -1,16 +1,10 @@
 import os
 from datetime import datetime, timezone
-
-try:
-    import boto3
-except ImportError:
-    boto3 = None
+import boto3
 
 from app.config import AWS_REGION
 
-from app.services.sqlite_db import db_save_profile, db_get_profile
-
-PROFILES_TABLE = os.getenv("PROFILES_TABLE", "raawa-profiles")
+TABLE_NAME = os.getenv("DYNAMODB_TABLE", "raawa-data")
 
 
 def _normalize_email(value):
@@ -18,26 +12,21 @@ def _normalize_email(value):
 
 
 def _create_resource():
-    if boto3 is None:
-        return None
+    region = os.getenv("AWS_REGION", AWS_REGION)
+    endpoint = os.getenv("DYNAMODB_ENDPOINT")
 
-    if os.getenv("DYNAMODB_ENDPOINT"):
+    if endpoint:
         return boto3.resource(
             "dynamodb",
-            region_name=os.getenv("AWS_REGION", AWS_REGION),
-            endpoint_url=os.getenv("DYNAMODB_ENDPOINT"),
+            region_name=region,
+            endpoint_url=endpoint,
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "dummy"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "dummy"),
         )
-
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    if not access_key or not secret_key:
-        return None
 
     return boto3.resource(
         "dynamodb",
-        region_name=os.getenv("AWS_REGION", AWS_REGION),
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
+        region_name=region,
     )
 
 
@@ -45,25 +34,42 @@ dynamodb_resource = _create_resource()
 
 
 def _get_table():
-    if dynamodb_resource is None:
-        return None
-
     try:
-        table = dynamodb_resource.Table(PROFILES_TABLE)
+        table = dynamodb_resource.Table(TABLE_NAME)
         table.load()
         return table
     except Exception:
         try:
             table = dynamodb_resource.create_table(
-                TableName=PROFILES_TABLE,
-                KeySchema=[{"AttributeName": "profile_id", "KeyType": "HASH"}],
-                AttributeDefinitions=[{"AttributeName": "profile_id", "AttributeType": "S"}],
+                TableName=TABLE_NAME,
+                KeySchema=[
+                    {"AttributeName": "PK", "KeyType": "HASH"},
+                    {"AttributeName": "SK", "KeyType": "RANGE"}
+                ],
+                AttributeDefinitions=[
+                    {"AttributeName": "PK", "AttributeType": "S"},
+                    {"AttributeName": "SK", "AttributeType": "S"},
+                    {"AttributeName": "GSI1-PK", "AttributeType": "S"},
+                    {"AttributeName": "GSI1-SK", "AttributeType": "S"}
+                ],
+                GlobalSecondaryIndexes=[
+                    {
+                        "IndexName": "GSI1",
+                        "KeySchema": [
+                            {"AttributeName": "GSI1-PK", "KeyType": "HASH"},
+                            {"AttributeName": "GSI1-SK", "KeyType": "RANGE"}
+                        ],
+                        "Projection": {
+                            "ProjectionType": "ALL"
+                        }
+                    }
+                ],
                 BillingMode="PAY_PER_REQUEST",
             )
             table.wait_until_exists()
             return table
         except Exception as e:
-            print(f"Error creating table {PROFILES_TABLE}: {e}")
+            print(f"Error creating table {TABLE_NAME}: {e}")
             raise
 
 
@@ -73,6 +79,8 @@ def _build_profile_item(profile_data):
     now = datetime.now(timezone.utc).isoformat()
 
     return {
+        "PK": f"USER#{owner_email}",
+        "SK": "PROFILE",
         "profile_id": owner_email,
         "created_at": now,
         "updated_at": now,
@@ -89,10 +97,6 @@ def _build_profile_item(profile_data):
 
 def save_profile(profile_data):
     item = _build_profile_item(profile_data)
-
-    if dynamodb_resource is None:
-        return db_save_profile(item)
-
     table = _get_table()
     table.put_item(Item=item)
     return item
@@ -103,9 +107,6 @@ def get_profile(owner_email):
     if not normalized_email:
         return None
 
-    if dynamodb_resource is None:
-        return db_get_profile(normalized_email)
-
     table = _get_table()
-    response = table.get_item(Key={"profile_id": normalized_email})
+    response = table.get_item(Key={"PK": f"USER#{normalized_email}", "SK": "PROFILE"})
     return response.get("Item")
