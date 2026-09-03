@@ -23,7 +23,7 @@ import ReportViewer from './components/ReportViewer';
 import Footer from './components/Footer';
 import InteractiveBackground from './components/InteractiveBackground';
 import { saveProfile } from './services/accountService';
-import { runSimulation, saveSimulationId, saveSimulationResult, getReport } from './services/geminiService';
+import { runSimulation, saveSimulationId, saveSimulationResult, getReport } from './services/simulationService';
 import { ChevronLeft } from 'lucide-react';
 
 const normalizeEmail = (value) => (value || '').trim().toLowerCase();

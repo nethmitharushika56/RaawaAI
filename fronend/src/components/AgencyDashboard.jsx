@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, ChevronRight } from 'lucide-react';
-import { listSimulations } from '../services/geminiService';
+import { listSimulations } from '../services/simulationService';
 
 const getAudienceLabel = (aud) => {
   if (typeof aud === 'string') return aud;

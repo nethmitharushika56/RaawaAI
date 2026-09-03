@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, BrainCircuit, Flame, BarChart3, Download, Sparkles } from 'lucide-react';
-import { loadSimulationResult, SIMULATION_RESULT_STORAGE_KEY } from '../services/geminiService';
+import { loadSimulationResult, SIMULATION_RESULT_STORAGE_KEY } from '../services/simulationService';
 import { downloadSimulationResultPdf } from '../utils/simulationResultPdf';
 import { clamp, scoreLabel, scoreToColor } from '../utils/heatmapUtils';
 

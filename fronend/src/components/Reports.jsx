@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, BarChart3, Brain, FileText, Download } from 'lucide-react';
-import { listSimulations, getReport } from '../services/geminiService';
+import { listSimulations, getReport } from '../services/simulationService';
 
 const getAudienceLabel = (aud) => {
   if (typeof aud === 'string') return aud;
