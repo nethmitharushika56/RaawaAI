@@ -2,7 +2,48 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, BrainCircuit, Flame, BarChart3, Download, Sparkles } from 'lucide-react';
 import { loadSimulationResult, SIMULATION_RESULT_STORAGE_KEY } from '../services/simulationService';
 import { downloadSimulationResultPdf } from '../utils/simulationResultPdf';
-import { clamp, scoreLabel, scoreToColor } from '../utils/heatmapUtils';
+import { scoreLabel, scoreToColor } from '../utils/heatmapUtils';
+
+const AgentStatus = ({ agentStatus = {} }) => {
+  const agents = [
+    { key: 'ollama', name: 'Ollama', role: 'Audience Simulation' },
+    { key: 'huggingface', name: 'Hugging Face', role: 'Sentiment Analysis' },
+    { key: 'groq', name: 'Groq', role: 'Strategic Analysis' },
+  ];
+
+  return (
+    <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl backdrop-blur-xl">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-cyan-300">AI Agents</p>
+          <h2 className="text-2xl font-black text-white">The intelligence behind this result</h2>
+        </div>
+        <span className="text-xs text-slate-500">Live provider status</span>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        {agents.map((agent) => {
+          const rawStatus = agentStatus[agent.key];
+          const status = typeof rawStatus === 'object' ? rawStatus?.status : rawStatus;
+          const active = status === 'active';
+
+          return (
+            <div key={agent.key} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition-colors hover:border-cyan-300/20">
+              <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${active ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]' : 'bg-amber-400'}`} />
+                <span className="font-bold text-white">{agent.name}</span>
+                <span className={`ml-auto text-[10px] font-black uppercase tracking-[0.2em] ${active ? 'text-emerald-300' : 'text-amber-300'}`}>
+                  {status || 'unknown'}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-slate-400">{agent.role}</p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
 
 const SimulationResultWindow = ({ onClose }) => {
   const [result, setResult] = useState(() => loadSimulationResult());
@@ -102,14 +143,6 @@ const SimulationResultWindow = ({ onClose }) => {
     );
   }
 
-  const heatmapCells = heatmapRows.flatMap((row) => row.days.map((day) => ({
-    region: row.region,
-    day: day.day,
-    score: Number(day.score) || 0,
-    intensity: Number(day.intensity) || 0,
-    count: Number(day.count) || 0,
-  })));
-
   return (
     <div className="min-h-screen bg-[#020617] text-white relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.14),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.16),_transparent_35%)]" />
@@ -189,6 +222,8 @@ const SimulationResultWindow = ({ onClose }) => {
             </p>
           </div>
         </section>
+
+        <AgentStatus agentStatus={result.agentStatus} />
 
         <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 shadow-2xl backdrop-blur-xl space-y-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

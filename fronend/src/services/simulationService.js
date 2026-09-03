@@ -77,6 +77,7 @@ export const runSimulation = async (concept, audience) => {
       sentimentScore,
       reactions,
       heatmapMatrix: data.heatmap_matrix || data.heatmapMatrix || [],
+      agentStatus: data.agent_status || data.agentStatus || {},
     };
   } catch (error) {
     console.error('Simulation failed:', error);
