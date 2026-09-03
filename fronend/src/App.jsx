@@ -19,33 +19,12 @@ import About from './components/About';
 import ChangePlan from './components/ChangePlan';
 import PaymentMethods from './components/PaymentMethods';
 import SimulationResultWindow from './components/SimulationResultWindow';
+import ReportViewer from './components/ReportViewer';
 import Footer from './components/Footer';
 import InteractiveBackground from './components/InteractiveBackground';
 import { saveProfile } from './services/accountService';
-import { runSimulation, saveSimulationId, saveSimulationResult } from './services/geminiService';
-import { runSimulation, refinePolicy, generateReport, saveSimulationId, saveSimulationResult, getReport } from './services/geminiService';
+import { runSimulation, saveSimulationId, saveSimulationResult, getReport } from './services/geminiService';
 import { ChevronLeft } from 'lucide-react';
-
-const getAudienceLabel = (aud) => {
-  if (typeof aud === 'string') return aud;
-  if (aud && typeof aud === 'object') {
-    return aud.type || aud.label || aud.demographics?.[0] || 'General';
-  }
-  return 'General';
-};
-
-const getSummaryText = (summary, concept, audienceLabel) => {
-  if (typeof summary === 'string') return summary;
-  if (summary && typeof summary === 'object') {
-    if (summary.total_events !== undefined) {
-      const negPercent = Math.round((summary.negative_ratio || 0) * 100);
-      const avgSent = Math.round((summary.average_sentiment || 0) * 100);
-      return `Simulation analyzed ${summary.total_events} events for "${concept}" targeting ${audienceLabel}. Average sentiment was ${avgSent > 0 ? '+' : ''}${avgSent} with a ${negPercent}% negative reaction ratio.`;
-    }
-    return JSON.stringify(summary);
-  }
-  return `Simulation for "${concept}" targeting ${audienceLabel}.`;
-};
 
 const normalizeEmail = (value) => (value || '').trim().toLowerCase();
 
@@ -59,10 +38,11 @@ const App = () => {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const [showSavePassword, setShowSavePassword] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
+  const [, setShowSavePassword] = useState(false);
+  const [, setUserEmail] = useState('');
   const [userPassword, setUserPassword] = useState('');
   const [avatar, setAvatar] = useState('');
+  const [report, setReport] = useState(null);
 
   const getProfileKey = (email) => `profile:${normalizeEmail(email)}`;
   const saveProfileForUser = (email, profileData) => {
@@ -105,8 +85,6 @@ const App = () => {
   }, [navigate, location.pathname]);
 
   useEffect(() => {
-    if (localStorage.getItem('currentUserEmail')) {
-      setIsAuthenticated(true);
     const token = localStorage.getItem('authToken');
     const email = localStorage.getItem('currentUserEmail');
     if (token && email) {
@@ -119,8 +97,8 @@ const App = () => {
           if (parsed?.avatar) {
             setAvatar(parsed.avatar);
           }
-        } catch (e) {
-          console.error(e);
+        } catch {
+          setAvatar('');
         }
       }
     }
@@ -173,8 +151,6 @@ const App = () => {
 
   const handleSignOut = () => {
     setIsAuthenticated(false);
-    setResult(null);
-    setRefinement(null);
     setReport(null);
     setAvatar('');
     localStorage.removeItem('currentUserEmail');
@@ -228,6 +204,7 @@ const App = () => {
       {!isReviewerOrSimulationResult && (
         <Header
           view={view}
+          minimal={location.pathname === '/'}
           isAuthenticated={isAuthenticated}
           userRole={userRole}
           avatar={avatar}
@@ -294,7 +271,7 @@ const App = () => {
                     try {
                       const parsed = JSON.parse(saved);
                       setAvatar(parsed?.avatar || '');
-                    } catch (e) {
+                    } catch {
                       setAvatar('');
                     }
                   } else {
@@ -344,7 +321,7 @@ const App = () => {
                   try {
                     const data = await getReport(id);
                     setReport(data);
-                  } catch (e) {
+                  } catch {
                     alert('Failed to load report.');
                   }
                 }}
@@ -393,19 +370,11 @@ const App = () => {
                     try {
                       const data = await getReport(id);
                       setReport(data);
-                    } catch (e) {
+                    } catch {
                       alert('Failed to load report.');
                     }
                   }} 
-                  onOptimizeConcept={(sim) => {
-                    setResult({
-                      simulation_id: sim.simulation_id,
-                      concept: sim.concept,
-                      audienceType: getAudienceLabel(sim.audience),
-                      summary: getSummaryText(sim.metadata?.summary || sim.summary, sim.concept, getAudienceLabel(sim.audience)),
-                      backlashProbability: sim.backlash_score,
-                      sentimentScore: sim.metadata?.sentiment_score || sim.sentiment_score
-                    });
+                  onOptimizeConcept={() => {
                     navigate('/simulator');
                   }} 
                 />

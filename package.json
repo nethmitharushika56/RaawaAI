@@ -7,7 +7,6 @@
     "dev:proxy": "cross-env VITE_API_BASE_URL=http://localhost:8001 node scripts/start-dev.js"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0",
     "cross-env": "^7.0.3"
   }
 }

@@ -7,10 +7,10 @@ const Footer = () => {
 
   return (
     <footer className="w-full border-t border-white/5 py-12 px-12 md:px-24 mt-20 relative bg-[#050816]">
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-12">
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-12 justify-items-center text-center">
         <div className="space-y-4">
           <h3 className="font-bold text-slate-400 uppercase tracking-wider text-xs">RAAWA AI</h3>
-          <p className="text-[10px] text-slate-600 leading-relaxed max-w-[240px]">
+          <p className="text-[10px] text-slate-600 leading-relaxed max-w-[240px] mx-auto">
             The digital resonance laboratory for stress-testing human perception. Predict the backlash before the launch.
           </p>
         </div>
@@ -34,7 +34,7 @@ const Footer = () => {
         </div>
       </div>
       <div className="text-center pt-16 mt-8 border-t border-white/5">
-        <p className="text-[10px] text-slate-700">© 2024 RAAWA AI Labs. All rights reserved.</p>
+        <p className="text-[10px] text-slate-700">© 2026 RAAWA AI. All rights reserved. Designed by Team Exyra.</p>
       </div>
 
       {/* Scroll to Top Button */}

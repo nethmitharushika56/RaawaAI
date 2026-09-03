@@ -2,40 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, BrainCircuit, Flame, BarChart3, Download, Sparkles } from 'lucide-react';
 import { loadSimulationResult, SIMULATION_RESULT_STORAGE_KEY } from '../services/geminiService';
 import { downloadSimulationResultPdf } from '../utils/simulationResultPdf';
-import { scoreLabel, scoreToColor } from '../utils/heatmapUtils';
-
-const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
-
-const scoreToColor = (score) => {
-  const val = clamp(Number(score) || 0, -1, 1);
-  const ratio = Math.abs(val);
-  
-  // Base color: Slate-800/90 (30, 41, 59)
-  const base = { r: 30, g: 41, b: 59 };
-  
-  if (val >= 0) {
-    // Target: Emerald-500 (16, 185, 129)
-    const target = { r: 16, g: 185, b: 129 };
-    const r = Math.round(base.r + ratio * (target.r - base.r));
-    const g = Math.round(base.g + ratio * (target.g - base.g));
-    const b = Math.round(base.b + ratio * (target.b - base.b));
-    return `rgb(${r}, ${g}, ${b})`;
-  } else {
-    // Target: Red-500 (239, 68, 68)
-    const target = { r: 239, g: 68, b: 68 };
-    const r = Math.round(base.r + ratio * (target.r - base.r));
-    const g = Math.round(base.g + ratio * (target.g - base.g));
-    const b = Math.round(base.b + ratio * (target.b - base.b));
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-};
-
-
-const scoreLabel = (score) => {
-  if (score > 0.2) return 'Positive';
-  if (score < -0.2) return 'Negative';
-  return 'Neutral';
-};
+import { clamp, scoreLabel, scoreToColor } from '../utils/heatmapUtils';
 
 const SimulationResultWindow = ({ onClose }) => {
   const [result, setResult] = useState(() => loadSimulationResult());

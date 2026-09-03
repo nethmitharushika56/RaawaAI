@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ChevronDown, Info, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react';
 import logoImg from '../assets/RaawaAI_logo.png';
 
 const Header = ({ 
@@ -18,7 +19,8 @@ const Header = ({
   isAuthenticated = false,
   userRole = 'Agent', 
   currentPath = '',
-  avatar = ''
+  avatar = '',
+  minimal = false
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -34,102 +36,97 @@ const Header = ({
 
   return (
     <>
-    <header className="sticky top-0 z-50 w-full shrink-0 border-b border-white/5 bg-[#020617]/75 backdrop-blur-lg py-4">
-      <div className="w-full px-6 flex items-center justify-between">
+    <header className="sticky top-0 z-50 w-full shrink-0 border-b border-white/[0.07] bg-[#020617]/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-[76px] w-full max-w-7xl items-center justify-between px-6 lg:px-8">
         <div className="flex items-center shrink-0">
           <div 
-            className="flex items-center cursor-pointer group"
+            className="group flex cursor-pointer items-center rounded-xl py-2 pr-3 transition-opacity hover:opacity-85"
             onClick={onHome}
           >
             <img
               src={logoImg}
               alt="RaawaAI"
-              className="h-10 w-auto object-contain md:h-12"
+              className="h-9 w-auto object-contain md:h-10"
             />
           </div>
         </div>
         
-        <div className="flex items-center space-x-4 justify-end shrink-0">
+        {!minimal && <div className="flex items-center gap-3 justify-end shrink-0">
           {showDashboardUI ? (
-            <div className="hidden md:flex items-center space-x-6 shrink-0 relative">
+            <div className="hidden md:flex items-center gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-1 shadow-[0_8px_30px_rgba(0,0,0,0.18)] shrink-0 relative">
               <button 
                 onClick={onHome}
-                className={`text-sm font-medium transition-colors ${
-                  isHome ? 'text-[#69D2E9]' : 'text-white hover:text-white/85'
-                }`}
+                className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all ${isHome ? 'bg-cyan-400/10 text-cyan-300 shadow-inner shadow-cyan-400/10' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'}`}
               >
-                Home
+                <span>Home</span>
               </button>
               <button 
                 onClick={onDashboard}
-                className={`text-sm font-medium transition-colors ${
-                  isDashboard ? 'text-[#69D2E9]' : 'text-white hover:text-white/85'
-                }`}
+                className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all ${isDashboard ? 'bg-cyan-400/10 text-cyan-300 shadow-inner shadow-cyan-400/10' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'}`}
               >
+                <LayoutDashboard size={15} strokeWidth={1.8} />
                 Agency Dashboard
               </button>
               <button 
                 onClick={onAbout}
-                className={`text-sm font-medium transition-colors ${
-                  isAbout ? 'text-[#69D2E9]' : 'text-white hover:text-white/85'
-                }`}
+                className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all ${isAbout ? 'bg-cyan-400/10 text-cyan-300 shadow-inner shadow-cyan-400/10' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'}`}
               >
+                <Info size={15} strokeWidth={1.8} />
                 About
               </button>
-              
-              <div className="h-4 w-px bg-white/10 mx-1" />
- 
-              <div className="flex items-center space-x-2 min-w-0">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
-                <span className="text-sm font-medium text-slate-300">Role: {userRole}</span>
-              </div>
- 
+
               <div className="relative">
                 <button
                   onClick={() => setAccountOpen((s) => !s)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/5 hover:border-white/10 transition-all font-medium text-sm"
+                  aria-expanded={accountOpen}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-sm font-medium text-slate-200 transition-all hover:border-cyan-300/30 hover:bg-cyan-300/10"
                 >
                   {avatar ? (
                     <img src={avatar} alt="Profile" className="h-6 w-6 rounded-full object-cover border border-white/10" />
                   ) : (
-                    <div className="h-6 w-6 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-300 font-semibold border border-white/10">
-                      A
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full border border-cyan-200/20 bg-cyan-300/10 text-cyan-200">
+                      <UserRound size={13} />
                     </div>
                   )}
                   <span>Account</span>
+                  <ChevronDown size={14} className={`transition-transform ${accountOpen ? 'rotate-180' : ''}`} />
                 </button>
  
                 {accountOpen && (
-                  <div className="absolute right-0 mt-3 w-48 bg-[#0b1329]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-1.5 z-50 animate-in fade-in slide-in-from-top-3 duration-200">
-                    <button onClick={() => { setAccountOpen(false); onProfile && onProfile(); }} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Profile</button>
-                    <button onClick={() => { setAccountOpen(false); onReviewer && onReviewer(); }} className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors">Reviewer</button>
+                  <div className="absolute right-0 z-50 mt-3 w-52 rounded-2xl border border-white/10 bg-[#0b1329]/95 p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200">
+                    <div className="mb-1 rounded-xl border border-cyan-300/10 bg-cyan-300/[0.06] px-3 py-2.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Current role</div>
+                      <div className="mt-1 flex items-center gap-2 text-sm font-medium text-cyan-200">
+                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,210,233,0.9)]" />
+                        {userRole} access
+                      </div>
+                    </div>
+                    <button onClick={() => { setAccountOpen(false); onProfile && onProfile(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"><UserRound size={15} />Profile</button>
+                    <button onClick={() => { setAccountOpen(false); onReviewer && onReviewer(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"><LayoutDashboard size={15} />Reviewer</button>
                     <div className="border-t border-white/5 my-1.5 mx-2" />
-                    <button onClick={() => { setAccountOpen(false); onSignOut && onSignOut(); }} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors font-medium">Sign Out</button>
+                    <button onClick={() => { setAccountOpen(false); onSignOut && onSignOut(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-300 transition-colors hover:bg-rose-500/10 hover:text-rose-200"><LogOut size={15} />Sign Out</button>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="hidden md:flex items-center space-x-8 shrink-0">
+            <div className="hidden md:flex items-center gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-1 shrink-0">
               <button 
                 onClick={onHome}
-                className={`text-sm font-medium transition-colors ${
-                  isHome ? 'text-[#69D2E9]' : 'text-white hover:text-white/85'
-                }`}
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all ${isHome ? 'bg-cyan-400/10 text-cyan-300' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'}`}
               >
                 Home
               </button>
               <button 
                 onClick={onAbout}
-                className={`text-sm font-medium transition-colors ${
-                  isAbout ? 'text-[#69D2E9]' : 'text-white hover:text-white/85'
-                }`}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${isAbout ? 'bg-cyan-400/10 text-cyan-300' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'}`}
               >
+                <Info size={15} strokeWidth={1.8} />
                 About
               </button>
               <button 
                 onClick={onSignIn}
-                className="text-white hover:text-white/85 text-sm font-medium transition-colors"
+                className="rounded-xl bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_0_20px_rgba(103,210,233,0.18)] transition-all hover:bg-cyan-200"
               >
                 Sign In
               </button>
@@ -140,16 +137,16 @@ const Header = ({
           <div className="md:hidden">
             <button
               onClick={() => setMobileOpen((s) => !s)}
-              className="p-2 rounded-md bg-white/5 hover:bg-white/10 text-slate-200"
-              aria-label="Open menu"
+              className="rounded-xl border border-white/10 bg-white/[0.06] p-2.5 text-slate-200 transition-colors hover:bg-white/10"
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             >
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
-        </div>
+        </div>}
       </div>
     </header>
-    {mobileOpen && (
+    {!minimal && mobileOpen && (
       <div className="md:hidden absolute left-0 right-0 top-full bg-[#050816] border-t border-white/5 z-40 animate-in slide-in-from-top-3 duration-200">
         <div className="w-full px-6 py-4 flex flex-col gap-2 transition-all duration-200 ease-out">
            {showDashboardUI ? (

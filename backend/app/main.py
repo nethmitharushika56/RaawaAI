@@ -5,14 +5,8 @@ from app.api.account import router as account_router
 from app.api.profile import router as profile_router
 from app.api.reviewer import router as reviewer_router
 from app.api.auth import router as auth_router
-from app.services.dynamodb_service import get_table
 
 app = FastAPI(title="RaawaAI Backend")
-
-# Initialize database on startup
-@app.on_event("startup")
-def on_startup():
-    get_table()
 
 # Enable CORS for frontend communication
 app.add_middleware(
