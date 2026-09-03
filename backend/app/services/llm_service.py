@@ -32,7 +32,10 @@ def _fallback_reaction(persona, concept, day):
         f"Sentiment score: {sentiment_score}"
     )
 
-def generate_persona_reaction(persona, concept, day):
+def generate_persona_reaction(persona, concept, day, use_llm=True):
+    if not use_llm:
+        return _fallback_reaction(persona, concept, day)
+
     concept_excerpt = concept.strip().replace("\n", " ")[:140]
     prompt = (
         f"You are a synthetic audience member.\n"

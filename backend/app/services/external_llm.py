@@ -1,6 +1,5 @@
 import os
 import requests
-from app.config import OPENAI_API_KEY
 
 
 HF_TEXT_MODEL = os.getenv("HF_TEXT_MODEL", "google/flan-t5-base")
@@ -8,13 +7,13 @@ HF_SENTIMENT_MODEL = os.getenv("HF_SENTIMENT_MODEL", "cardiffnlp/twitter-roberta
 
 
 def _hf_token():
-    return os.getenv("HF_API_KEY")
+    return os.getenv("HF_TOKEN") or os.getenv("HF_API_TOKEN") or os.getenv("HF_API_KEY")
 
 
 def _hf_request(model: str, payload: dict):
     hf_token = _hf_token()
     headers = {"Authorization": f"Bearer {hf_token}"} if hf_token else {}
-    url = f"https://api-inference.huggingface.co/models/{model}"
+    url = f"https://router.huggingface.co/hf-inference/models/{model}"
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=45)
         response.raise_for_status()
@@ -95,24 +94,6 @@ def call_huggingface_sentiment_score(text: str, model: str | None = None) -> flo
         return 0.0
 
     return max(-1.0, min(1.0, positive - negative + (neutral * 0.1)))
-
-
-def call_openai_prompt(prompt: str, max_tokens: int = 150) -> str:
-    if not OPENAI_API_KEY:
-        return """(OpenAI key missing) Suggest clearer, simpler wording and reduce jargon."""
-
-    try:
-        import openai
-        openai.api_key = OPENAI_API_KEY
-        resp = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=max_tokens,
-            temperature=0.7,
-        )
-        return resp.choices[0].text.strip()
-    except Exception as e:
-        return f"(OpenAI error) {e}"
 
 
 def call_huggingface_inference(model: str, inputs: str) -> str:

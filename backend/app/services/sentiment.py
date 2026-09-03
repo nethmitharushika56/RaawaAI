@@ -2,8 +2,8 @@ import re
 
 from app.services.external_llm import call_huggingface_sentiment_score
 
-def extract_sentiment(text: str) -> float:
-    hf_score = call_huggingface_sentiment_score(text)
+def extract_sentiment(text: str, use_model=True) -> float:
+    hf_score = call_huggingface_sentiment_score(text) if use_model else None
     if hf_score is not None:
         return float(hf_score)
 

@@ -87,7 +87,7 @@ if (explicitPython && fs.existsSync(explicitPython)) {
   pythonExe = process.platform === 'win32' ? 'python' : 'python3';
 }
 
-const backendPort = process.env.BACKEND_PORT || process.env.VITE_API_PORT || '8001';
+const backendPort = process.env.BACKEND_PORT || process.env.VITE_API_PORT || '9000';
 const frontendEnv = {
   ...process.env,
   VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || `http://localhost:${backendPort}`,

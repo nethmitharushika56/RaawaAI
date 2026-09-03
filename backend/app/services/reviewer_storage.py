@@ -1,79 +1,17 @@
 import hashlib
-import os
 import uuid
 from datetime import datetime, timezone
-import boto3
 from boto3.dynamodb.conditions import Key, Attr
 
-from app.config import AWS_REGION
-
-TABLE_NAME = os.getenv("DYNAMODB_TABLE", "raawa-data")
+from app.services.dynamodb_service import get_table
 
 
 def _normalize_email(value):
     return (value or "").strip().lower()
 
 
-def _create_resource():
-    region = os.getenv("AWS_REGION", AWS_REGION)
-    endpoint = os.getenv("DYNAMODB_ENDPOINT")
-
-    if endpoint:
-        return boto3.resource(
-            "dynamodb",
-            region_name=region,
-            endpoint_url=endpoint,
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", "dummy"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", "dummy"),
-        )
-
-    return boto3.resource(
-        "dynamodb",
-        region_name=region,
-    )
-
-
-dynamodb_resource = _create_resource()
-
-
 def _get_table():
-    try:
-        table = dynamodb_resource.Table(TABLE_NAME)
-        table.load()
-        return table
-    except Exception:
-        try:
-            table = dynamodb_resource.create_table(
-                TableName=TABLE_NAME,
-                KeySchema=[
-                    {"AttributeName": "PK", "KeyType": "HASH"},
-                    {"AttributeName": "SK", "KeyType": "RANGE"}
-                ],
-                AttributeDefinitions=[
-                    {"AttributeName": "PK", "AttributeType": "S"},
-                    {"AttributeName": "SK", "AttributeType": "S"},
-                    {"AttributeName": "GSI1-PK", "AttributeType": "S"},
-                    {"AttributeName": "GSI1-SK", "AttributeType": "S"}
-                ],
-                GlobalSecondaryIndexes=[
-                    {
-                        "IndexName": "GSI1",
-                        "KeySchema": [
-                            {"AttributeName": "GSI1-PK", "KeyType": "HASH"},
-                            {"AttributeName": "GSI1-SK", "KeyType": "RANGE"}
-                        ],
-                        "Projection": {
-                            "ProjectionType": "ALL"
-                        }
-                    }
-                ],
-                BillingMode="PAY_PER_REQUEST",
-            )
-            table.wait_until_exists()
-            return table
-        except Exception as e:
-            print(f"Error creating table {TABLE_NAME}: {e}")
-            raise
+    return get_table()
 
 
 def _hash_password(password):

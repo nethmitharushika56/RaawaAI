@@ -13,4 +13,4 @@ services:
     image: amazon/dynamodb-local:latest
     command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
     ports:
-      - "8001:8000"
+      - "8002:8000"

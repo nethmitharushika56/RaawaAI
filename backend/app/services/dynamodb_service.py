@@ -1,9 +1,13 @@
 import os
+from pathlib import Path
 from datetime import datetime, timezone
 from decimal import Decimal
 import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 TABLE_NAME = os.getenv('DYNAMODB_TABLE', 'raawa-data')
 
@@ -28,6 +32,16 @@ def _create_resource():
 
 
 dynamodb_resource = _create_resource()
+
+
+def _to_dynamodb_value(value):
+    if isinstance(value, float):
+        return Decimal(str(value))
+    if isinstance(value, dict):
+        return {key: _to_dynamodb_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_to_dynamodb_value(item) for item in value]
+    return value
 
 
 def get_table():
@@ -96,7 +110,7 @@ def save_simulation(simulation_id, concept, audience, backlash_score, sample_pos
 
     try:
         table = get_table()
-        dynamo_item = dict(item)
+        dynamo_item = _to_dynamodb_value(item)
         dynamo_item['backlash_score'] = Decimal(str(backlash_score))
         
         table.put_item(Item=dynamo_item)

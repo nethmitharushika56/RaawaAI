@@ -15,7 +15,10 @@ Copy `.env.example` to `.env` and fill in the values:
 - `DYNAMODB_ENDPOINT` - local endpoint (e.g. `http://localhost:8000`)
 - `AWS_ACCESS_KEY_ID` - AWS access key for DynamoDB in AWS
 - `AWS_SECRET_ACCESS_KEY` - AWS secret key for DynamoDB in AWS
-- `OPENAI_API_KEY` - used by the LLM service layer
+- `GROQ_API_KEY` - optional server-side strategy and report generation
+- `GROQ_MODEL` - Groq model name, defaulting to `llama-3.1-8b-instant`
+- `HF_TOKEN` - optional Hugging Face generation and sentiment scoring
+- `OLLAMA_BASE_URL` / `OLLAMA_MODEL` - optional local audience simulation
 
 ## SQLite Persistent Database Fallback
 - When boto3/AWS credentials are not configured, the backend automatically stores all models (Simulations, Refinements, Reports, Users, Organizations, Profiles, and Reviews) inside a local SQLite database (`backend/raawa.db`).

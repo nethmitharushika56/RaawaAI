@@ -42,7 +42,7 @@ def _fallback_comment(prompt: str, persona_label: str, score: float) -> str:
     return f"{persona_label} is {tone} and suggests clearer context before launch. #resonance"
 
 
-def run_simulation(concept: str, audience: dict, days: int =30, sampling=10):
+def run_simulation(concept: str, audience: dict, days: int =30, sampling=10, use_external_generation=True):
     personas = build_personas_from_audience(audience)
 
     all_events = []
@@ -52,7 +52,7 @@ def run_simulation(concept: str, audience: dict, days: int =30, sampling=10):
     day_scores = defaultdict(list)
 
     for day in range(1, days + 1):
-        day_events = simulate_day(personas, concept, day)
+        day_events = simulate_day(personas, concept, day, use_llm=False)
         all_events.extend(day_events)
         for ev in day_events:
             # sentiment
@@ -112,7 +112,7 @@ def run_simulation(concept: str, audience: dict, days: int =30, sampling=10):
             f"Persona: {persona_label}\n"
             "Return only the comments."
         )
-        comments = call_huggingface_generation(prompt, max_new_tokens=120)
+        comments = call_huggingface_generation(prompt, max_new_tokens=120) if use_external_generation else None
         if not comments or str(comments).startswith("("):
             comments = _fallback_comment(prompt, persona_label, float(ev.get("sentiment", 0.0)))
 
@@ -126,12 +126,12 @@ def run_simulation(concept: str, audience: dict, days: int =30, sampling=10):
 
     # Backlash KPI as 0-100 already
 
-    # Policy refinement: ask OpenAI to suggest wording improvements
+    # Policy refinement uses the Hugging Face generation provider.
     refinement_prompt = (
         f"The following policy text should be refined to reduce public backlash while preserving intent.\nPolicy:\n{concept}\n\n"
         "Suggest a revised short version (one paragraph) and 3 specific mitigation talking points."
     )
-    refinement = call_huggingface_generation(refinement_prompt, max_new_tokens=220)
+    refinement = call_huggingface_generation(refinement_prompt, max_new_tokens=220) if use_external_generation else None
     if not refinement or str(refinement).startswith("("):
         refinement = "Simplify language, reduce absolute claims, add benefits and safeguards."
 

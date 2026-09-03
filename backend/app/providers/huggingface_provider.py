@@ -3,7 +3,7 @@ import os
 import requests
 
 
-HF_API_URL = "https://api-inference.huggingface.co/models"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models"
 HF_SENTIMENT_MODEL = os.getenv(
     "HF_SENTIMENT_MODEL", "cardiffnlp/twitter-roberta-base-sentiment-latest"
 )
@@ -11,7 +11,7 @@ HF_SENTIMENT_MODEL = os.getenv(
 
 def score_sentiment(text: str, model: str | None = None) -> float | None:
     """Return a normalized sentiment score, or None when inference is unavailable."""
-    hf_api_key = os.getenv("HF_API_KEY")
+    hf_api_key = os.getenv("HF_TOKEN") or os.getenv("HF_API_TOKEN") or os.getenv("HF_API_KEY")
     if not hf_api_key:
         return None
     try:
