@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from app.models.simulation import SimulationRequest
 from app.models.persona import Persona
 from app.services.persona_engine import simulate_day
-from app.services.multi_agent_engine import run_simulation
+from app.orchestration.simulation_orchestrator import run_multi_agent_simulation
 from app.services.dynamodb_service import save_simulation, save_refinement, save_report
 from app.services.sentiment import extract_sentiment
 
@@ -286,7 +286,7 @@ def start_multi_simulation(req: SimulationRequest):
     days = int(10 + (fidelity / 100.0) * 20)
     sampling = int(3 + (fidelity / 100.0) * 7)
 
-    result = run_simulation(req.concept, audience, days=days, sampling=sampling)
+    result = run_multi_agent_simulation(req.concept, audience, days=days, sampling=sampling)
     audience_label = _audience_label(req.audience)
 
     # Persist summary similar to existing endpoint
@@ -346,4 +346,8 @@ def start_multi_simulation(req: SimulationRequest):
         "sample_posts": result.get("sample_posts"),
         "reactions": result.get("sample_posts"),
         "refinement": result.get("refinement"),
+        "agent_status": result.get("agent_status"),
+        "audience_agent_output": result.get("audience_agent_output"),
+        "sentiment_agent_score": result.get("sentiment_agent_score"),
+        "strategy_agent_output": result.get("strategy_agent_output"),
     }
