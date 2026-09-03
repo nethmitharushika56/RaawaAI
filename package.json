@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "node scripts/start-dev.js",
-    "dev:proxy": "cross-env VITE_API_BASE_URL=http://localhost:8001 node scripts/start-dev.js"
+    "dev:proxy": "cross-env VITE_API_BASE_URL=http://127.0.0.1:9000 node scripts/start-dev.js"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"

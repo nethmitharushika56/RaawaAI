@@ -12,7 +12,7 @@ Copy `.env.example` to `.env` and fill in the values:
 
 - `AWS_REGION` - AWS region for the table (e.g. `ap-south-1`)
 - `DYNAMODB_TABLE` - DynamoDB table name (defaults to `raawa-simulations`)
-- `DYNAMODB_ENDPOINT` - local endpoint (e.g. `http://localhost:8000`)
+- `DYNAMODB_ENDPOINT` - local endpoint (e.g. `http://localhost:8002`)
 - `AWS_ACCESS_KEY_ID` - AWS access key for DynamoDB in AWS
 - `AWS_SECRET_ACCESS_KEY` - AWS secret key for DynamoDB in AWS
 - `GROQ_API_KEY` - optional server-side strategy and report generation
@@ -38,7 +38,7 @@ Copy `.env.example` to `.env` and fill in the values:
    ```
 2. Start the backend:
    ```bash
-   uvicorn app.main:app --reload --port 8001
+   uvicorn app.main:app --reload --host 127.0.0.1 --port 9000
    ```
 3. Run the automated test suite:
    ```bash
@@ -55,4 +55,4 @@ To run the backend with a local DynamoDB instance:
    docker compose up --build
    ```
 
-The backend will be available on `http://localhost:8000` and DynamoDB Local will be exposed on `http://localhost:8001`.
+The backend will be available on `http://127.0.0.1:9000` and DynamoDB Local will be exposed on `http://localhost:8002`.

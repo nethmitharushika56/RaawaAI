@@ -38,7 +38,7 @@ You can launch both the React frontend and the FastAPI backend concurrently usin
    ```
    This will automatically detect your python environment, initialize the SQLite database, and launch:
    - **Frontend**: http://localhost:3000
-   - **Backend**: http://localhost:8001
+   - **Backend**: http://127.0.0.1:9000
 
 ## Backend Setup & Testing
 

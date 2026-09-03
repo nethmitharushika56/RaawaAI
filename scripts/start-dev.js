@@ -44,14 +44,14 @@ if (!fs.existsSync(envExamplePath)) {
     '# Copy this to .env and customize values as needed',
     '',
     '# Port for the backend uvicorn server',
-    'BACKEND_PORT=8001',
+    'BACKEND_PORT=9000',
     '',
     '# Optional: full path to Python executable to use (overrides .venv detection)',
     "# PYTHON_PATH=.venv/Scripts/python.exe  # Windows",
     "# PYTHON_PATH=.venv/bin/python        # macOS / Linux",
     '',
     '# Optionally override the Vite API base used by the frontend',
-    "# VITE_API_BASE_URL=http://localhost:8001",
+    "# VITE_API_BASE_URL=http://127.0.0.1:9000",
     '',
   ].join('\n');
   try {
